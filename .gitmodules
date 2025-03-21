@@ -1,0 +1,6 @@
+[submodule "libs/stx-btree"]
+	path = libs/stx-btree
+	url = https://github.com/bingmann/stx-btree.git
+[submodule "libs/bwtree"]
+	path = libs/bwtree
+	url = https://github.com/wangziqi2013/BwTree.git
