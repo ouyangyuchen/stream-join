@@ -1,0 +1,64 @@
+# Minimum CMake version required
+cmake_minimum_required(VERSION 3.14)
+
+# Project name and version
+project(main VERSION 1.0 LANGUAGES CXX)
+
+# Set C++ standard (e.g., C++17, C++20)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Enable warnings and treat them as errors
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+endif()
+
+# Generate compile_commands.json for clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Add executable target
+add_executable(${PROJECT_NAME}
+    src/main.cpp
+)
+
+# Include directories
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+target_include_directories(${PROJECT_NAME} PUBLIC libs/bwtree/src)
+target_include_directories(${PROJECT_NAME} PUBLIC libs/stx-btree/include)
+
+# Link libraries (if needed)
+# target_link_libraries(${PROJECT_NAME} PRIVATE some_library)
+
+# Install target (optional)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+# Find clang-format and clang-tidy
+find_program(CLANG_FORMAT "clang-format")
+find_program(CLANG_TIDY "clang-tidy")
+
+# Add a custom target for clang-format
+if (CLANG_FORMAT)
+    file(GLOB_RECURSE ALL_SOURCE_FILES
+        src/*.cpp
+        include/*.h
+        include/*.hpp
+    )
+
+    add_custom_target(
+        format
+        COMMAND ${CLANG_FORMAT}
+        -i
+        ${ALL_SOURCE_FILES}
+        COMMENT "Running clang-format on all source files"
+    )
+else()
+    message(WARNING "clang-format not found. Formatting target will not be available.")
+endif()
+
+# Add clang-tidy integration
+if (CLANG_TIDY)
+    set(CMAKE_CXX_CLANG_TIDY ${CLANG_TIDY} -extra-arg=-Wno-unknown-warning-option)
+else()
+    message(WARNING "clang-tidy not found. Static analysis will not be available.")
+endif()
