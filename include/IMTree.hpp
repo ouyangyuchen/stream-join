@@ -43,7 +43,8 @@ class IMTree {
  public:
   IMTree(int mergeThreshold) { m_mergeThreshold = mergeThreshold; }
 
-  IMTree(vector<pair<Type_Key, Type_Ts>> &stream, int mergeThreshold) : m_mergeThreshold(mergeThreshold) {
+  IMTree(vector<pair<Type_Key, Type_Ts>> &stream, int mergeThreshold)
+      : m_mergeThreshold(mergeThreshold) {
     bulk_load(stream);
   }
 
@@ -53,8 +54,10 @@ class IMTree {
 
   void range_search(pair<Type_Key, Type_Ts> &arrivalTuple, Type_Key &searchRange,
                     vector<pair<Type_Key, Type_Ts>> &searchResult);
-  void range_search(pair<Type_Key, Type_Ts> &arrivalTuple, vector<pair<Type_Key, Type_Ts>> &searchResult);
-  void range_search(tuple<Type_Key, Type_Ts, Type_Key> &arrivalTuple, vector<pair<Type_Key, Type_Ts>> &searchResult);
+  void range_search(pair<Type_Key, Type_Ts> &arrivalTuple,
+                    vector<pair<Type_Key, Type_Ts>> &searchResult);
+  void range_search(tuple<Type_Key, Type_Ts, Type_Key> &arrivalTuple,
+                    vector<pair<Type_Key, Type_Ts>> &searchResult);
 
   void insert(pair<Type_Key, Type_Ts> &arrivalTuple);
 
@@ -78,7 +81,8 @@ void IMTree<Type_Key, Type_Ts>::bulk_load(vector<pair<Type_Key, Type_Ts>> &strea
 Point Lookup
 */
 template <class Type_Key, class Type_Ts>
-void IMTree<Type_Key, Type_Ts>::lookup(pair<Type_Key, Type_Ts> &arrivalTuple, Type_Key &resultCount) {
+void IMTree<Type_Key, Type_Ts>::lookup(pair<Type_Key, Type_Ts> &arrivalTuple,
+                                       Type_Key &resultCount) {
   Type_Key targetKey = arrivalTuple.first;
   Type_Ts newTimeStamp = arrivalTuple.second;
   Type_Ts lowerLimit = ((double)newTimeStamp - TIME_WINDOW < numeric_limits<Type_Ts>::min())
@@ -101,7 +105,8 @@ void IMTree<Type_Key, Type_Ts>::lookup(pair<Type_Key, Type_Ts> &arrivalTuple, Ty
 Range Search
 */
 template <class Type_Key, class Type_Ts>
-void IMTree<Type_Key, Type_Ts>::range_search(pair<Type_Key, Type_Ts> &arrivalTuple, Type_Key &searchRange,
+void IMTree<Type_Key, Type_Ts>::range_search(pair<Type_Key, Type_Ts> &arrivalTuple,
+                                             Type_Key &searchRange,
                                              vector<pair<Type_Key, Type_Ts>> &searchResult) {
   Type_Key targetKey = arrivalTuple.first;
   Type_Ts newTimeStamp = arrivalTuple.second;
@@ -284,20 +289,22 @@ inline uint64_t IMTree<Type_Key, Type_Ts>::get_total_size_in_bytes() {
   };
 
   auto searchTreeStats = m_searchTree.get_stats();
-  uint64_t searchTreeSize = sizeof(m_searchTree) +
-                            sizeof(node) * (searchTreeStats.leaves + searchTreeStats.innernodes) +
-                            sizeof(Type_Key) * searchTreeStats.innerslots * searchTreeStats.innernodes +
-                            sizeof(node *) * (searchTreeStats.innerslots + 1) * searchTreeStats.innernodes +
-                            sizeof(Type_Key) * searchTreeStats.leafslots * searchTreeStats.leaves +
-                            sizeof(Type_Ts) * searchTreeStats.leafslots * searchTreeStats.leaves + sizeof(node *) * 2;
+  uint64_t searchTreeSize =
+      sizeof(m_searchTree) + sizeof(node) * (searchTreeStats.leaves + searchTreeStats.innernodes) +
+      sizeof(Type_Key) * searchTreeStats.innerslots * searchTreeStats.innernodes +
+      sizeof(node *) * (searchTreeStats.innerslots + 1) * searchTreeStats.innernodes +
+      sizeof(Type_Key) * searchTreeStats.leafslots * searchTreeStats.leaves +
+      sizeof(Type_Ts) * searchTreeStats.leafslots * searchTreeStats.leaves + sizeof(node *) * 2;
 
   auto insertionTreeStats = m_insertionTree.get_stats();
   uint64_t insertionTreeSize =
-      sizeof(m_insertionTree) + sizeof(node) * (insertionTreeStats.leaves + insertionTreeStats.innernodes) +
+      sizeof(m_insertionTree) +
+      sizeof(node) * (insertionTreeStats.leaves + insertionTreeStats.innernodes) +
       sizeof(Type_Key) * insertionTreeStats.innerslots * insertionTreeStats.innernodes +
       sizeof(node *) * (insertionTreeStats.innerslots + 1) * insertionTreeStats.innernodes +
       sizeof(Type_Key) * insertionTreeStats.leafslots * insertionTreeStats.leaves +
-      sizeof(Type_Ts) * insertionTreeStats.leafslots * insertionTreeStats.leaves + sizeof(node *) * 2;
+      sizeof(Type_Ts) * insertionTreeStats.leafslots * insertionTreeStats.leaves +
+      sizeof(node *) * 2;
 
   return sizeof(int) + searchTreeSize + insertionTreeSize;
 }

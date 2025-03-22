@@ -19,7 +19,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Add executable target
 add_executable(${PROJECT_NAME}
-    src/main.cpp
+src/main.cpp
+src/random_stream.cpp
+src/tpc_stream.cpp
 )
 
 # Include directories
@@ -32,6 +34,28 @@ target_include_directories(${PROJECT_NAME} PUBLIC libs/stx-btree/include)
 
 # Install target (optional)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+
+
+# Find Google Test
+find_package(GTest REQUIRED)
+find_package(Threads REQUIRED)
+
+# Add test executable
+add_executable(tests
+test/test_main.cpp
+test/test_stream.cpp
+src/random_stream.cpp
+src/tpc_stream.cpp
+)
+target_include_directories(tests PUBLIC include)
+
+# Link Google Test
+target_link_libraries(tests PRIVATE GTest::GTest GTest::Main Threads::Threads)
+
+# Add test target
+include(GoogleTest)
+gtest_discover_tests(tests)
+
 
 # Find clang-format and clang-tidy
 find_program(CLANG_FORMAT "clang-format")
