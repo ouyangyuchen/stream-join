@@ -4,7 +4,7 @@
 #include "bplustree.hpp"
 #include "list_index.hpp"
 
-auto basic_test(indexes::Index<int, int> &index) -> void {
+auto basic_test(stream::Index<int, int> &index) -> void {
   index.insert(std::make_tuple(1, 11, 1));
   index.insert(std::make_tuple(2, 12, 2));
   index.insert(std::make_tuple(3, 13, 3));
@@ -44,7 +44,7 @@ auto basic_test(indexes::Index<int, int> &index) -> void {
   ASSERT_EQ(result[3], std::make_tuple(4, 14, 4));
 }
 
-auto window_overflow_test(indexes::Index<int, int> &index) -> void {
+auto window_overflow_test(stream::Index<int, int> &index) -> void {
   auto window_length = index.get_window_length();
   ASSERT_EQ(window_length, 2);
 
@@ -73,7 +73,7 @@ auto window_overflow_test(indexes::Index<int, int> &index) -> void {
   ASSERT_EQ(result.size(), 0);
 }
 
-auto range_search_test(indexes::Index<int, int> &index) -> void {
+auto range_search_test(stream::Index<int, int> &index) -> void {
   // insert 100 tuples with timestamp from 0 to 99, key from 0 to 99, value from 0 to 99
   auto timestamp = 0;
   auto key = 0;
@@ -102,32 +102,32 @@ auto range_search_test(indexes::Index<int, int> &index) -> void {
 }
 
 TEST(ListIndexTest, Basic) {
-  indexes::ListIndex<int, int> index(10);
+  stream::ListIndex<int, int> index(10);
   basic_test(index);
 }
 
 TEST(ListIndexTest, WindowOverflow) {
   // [1, 2]
-  indexes::ListIndex<int, int> index(2);
+  stream::ListIndex<int, int> index(2);
   window_overflow_test(index);
 }
 
 TEST(ListIndexTest, RangeSearch) {
-  indexes::ListIndex<int, int> index(10);
+  stream::ListIndex<int, int> index(10);
   range_search_test(index);
 }
 
 TEST(BPlusTreeIndexTest, Basic) {
-  indexes::BPlusTreeIndex<int, int> index(10);
+  stream::BPlusTreeIndex<int, int> index(10);
   basic_test(index);
 }
 
 TEST(BPlusTreeIndexTest, WindowOverflow) {
-  indexes::BPlusTreeIndex<int, int> index(2);
+  stream::BPlusTreeIndex<int, int> index(2);
   window_overflow_test(index);
 }
 
 TEST(BPlusTreeIndexTest, RangeSearch) {
-  indexes::BPlusTreeIndex<int, int> index(10);
+  stream::BPlusTreeIndex<int, int> index(10);
   range_search_test(index);
 }

@@ -4,7 +4,7 @@
 
 #include "index.hpp"
 
-namespace indexes {
+namespace stream {
 
 template <typename KeyType, typename ValueType>
 class ListIndex : public Index<KeyType, ValueType> {
@@ -48,4 +48,4 @@ class ListIndex : public Index<KeyType, ValueType> {
   std::deque<TupleType> tuples_;
 };
 
-}  // namespace indexes
+}  // namespace stream
