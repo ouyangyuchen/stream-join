@@ -5,6 +5,7 @@ Unit tests for the stream interface and its implementations.
 */
 
 #include <gtest/gtest.h>
+#include <iostream>
 
 #include "random_stream.hpp"
 #include "tpc_stream.hpp"
@@ -80,6 +81,11 @@ TEST(StreamTest, TPCStream) {
     ASSERT_TRUE(stream.read(timestamp, key, value));
     ASSERT_EQ(timestamp, i);
   }
+  // empty line
+  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.eof());
+  ASSERT_FALSE(stream.read(timestamp, key, value));
+
   ASSERT_FALSE(stream.available());
   ASSERT_TRUE(stream.eof());
   ASSERT_FALSE(stream.read(timestamp, key, value));
@@ -111,8 +117,8 @@ TEST(StreamTest, TPCStreamIllegal) {
   stream::TPCStream stream("../data/tpc-h/nation.tbl", 5, 2);
   stream::TsType timestamp;
   std::string key, value;
-  ASSERT_THROW(stream.read(timestamp, key, value), std::runtime_error);
+  ASSERT_FALSE(stream.read(timestamp, key, value));
 
   stream::TPCStream stream2("../data/tpc-h/nation.tbl", 2, 5);
-  ASSERT_THROW(stream2.read(timestamp, key, value), std::runtime_error);
+  ASSERT_FALSE(stream2.read(timestamp, key, value));
 }
