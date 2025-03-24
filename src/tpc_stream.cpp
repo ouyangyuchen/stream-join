@@ -33,26 +33,26 @@ auto stream::TPCStream::read(TsType &timestamp, std::string &key, std::string &v
   if (key_column_ < value_column_) {  // key is before value
     for (int i = 0; i < key_column_; ++i) {
       if (ss.eof()) {
-        return false;
+        throw std::runtime_error("Unexpected end of file");
       }
       std::getline(ss, key_token, '|');
     }
     for (int i = key_column_; i < value_column_; ++i) {
       if (ss.eof()) {
-        return false;
+        throw std::runtime_error("Unexpected end of file");
       }
       std::getline(ss, value_token, '|');
     }
   } else {  // value is before key
     for (int i = 0; i < value_column_; ++i) {
       if (ss.eof()) {
-        return false;
+        throw std::runtime_error("Unexpected end of file");
       }
       std::getline(ss, value_token, '|');
     }
     for (int i = value_column_; i < key_column_; ++i) {
       if (ss.eof()) {
-        return false;
+        throw std::runtime_error("Unexpected end of file");
       }
       std::getline(ss, key_token, '|');
     }
