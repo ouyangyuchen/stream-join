@@ -8,7 +8,7 @@
 #include "index.hpp"
 #include "stx/btree_map.h"
 
-namespace indexes {
+namespace stream {
 
 template <typename KeyType, typename ValueType>
 class BPlusTreeIndex : public Index<KeyType, ValueType> {
@@ -52,4 +52,4 @@ class BPlusTreeIndex : public Index<KeyType, ValueType> {
   stx::btree_map<KeyType, TupleType> tree_;
   std::deque<KeyType> keys_arrival_order_;
 };
-}  // namespace indexes
+}  // namespace stream

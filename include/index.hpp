@@ -12,9 +12,7 @@ Index interface for stream join.
 
 #include "stream.hpp"
 
-namespace indexes {
-
-using stream::TsType;
+namespace stream {
 
 /**
  * @brief Index interface for stream join.
@@ -56,4 +54,4 @@ class Index {
   TsType window_length_;
 };
 
-}  // namespace indexes
+}  // namespace stream
