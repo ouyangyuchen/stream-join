@@ -25,9 +25,9 @@ src/tpc_stream.cpp
 )
 
 # Include directories
-target_include_directories(${PROJECT_NAME} PUBLIC include)
-target_include_directories(${PROJECT_NAME} PUBLIC libs/bwtree/src)
-target_include_directories(${PROJECT_NAME} PUBLIC libs/stx-btree/include)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/libs/bwtree/src)
+include_directories(${PROJECT_SOURCE_DIR}/libs/stx-btree/include)
 
 # Link libraries (if needed)
 # target_link_libraries(${PROJECT_NAME} PRIVATE some_library)
@@ -41,21 +41,22 @@ find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
 
 # Add test executable
-add_executable(tests
+add_executable(test_stream
 test/test_main.cpp
 test/test_stream.cpp
 src/random_stream.cpp
 src/tpc_stream.cpp
 )
-target_include_directories(tests PUBLIC include)
+add_executable(test_index test/test_main.cpp test/test_index.cpp)
 
-# Link Google Test
-target_link_libraries(tests PRIVATE GTest::GTest GTest::Main Threads::Threads)
+# Include directories and link libraries
+target_link_libraries(test_stream PRIVATE GTest::GTest GTest::Main Threads::Threads)
+target_link_libraries(test_index PRIVATE GTest::GTest GTest::Main Threads::Threads)
 
 # Add test target
 include(GoogleTest)
-gtest_discover_tests(tests)
-
+gtest_discover_tests(test_index)
+gtest_discover_tests(test_stream)
 
 # Find clang-format and clang-tidy
 find_program(CLANG_FORMAT "clang-format")
