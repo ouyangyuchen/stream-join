@@ -21,9 +21,9 @@ namespace stream {
  */
 template <typename KeyType, typename ValueType>
 class Index {
+ public:
   using TupleType = std::tuple<TsType, KeyType, ValueType>;
 
- public:
   Index(TsType window_length) : window_length_(window_length) {}
 
   virtual ~Index() = default;
@@ -44,11 +44,17 @@ class Index {
 
   auto get_window_length() const -> TsType { return window_length_; }
 
-  static auto get_key(const TupleType &tuple) -> KeyType { return std::get<1>(tuple); }
+  static auto get_key(const TupleType &tuple) -> const KeyType & { return std::get<1>(tuple); }
 
-  static auto get_value(const TupleType &tuple) -> ValueType { return std::get<2>(tuple); }
+  static auto get_value(const TupleType &tuple) -> const ValueType & { return std::get<2>(tuple); }
 
-  static auto get_timestamp(const TupleType &tuple) -> TsType { return std::get<0>(tuple); }
+  static auto get_timestamp(const TupleType &tuple) -> const TsType & { return std::get<0>(tuple); }
+
+  static auto get_key(TupleType &tuple) -> KeyType & { return std::get<1>(tuple); }
+
+  static auto get_value(TupleType &tuple) -> ValueType & { return std::get<2>(tuple); }
+
+  static auto get_timestamp(TupleType &tuple) -> TsType & { return std::get<0>(tuple); }
 
  protected:
   TsType window_length_;
