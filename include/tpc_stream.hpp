@@ -13,13 +13,13 @@ Stream implementation for reading from a TPC-H dataset.
 
 namespace stream {
 
-class TPCStream : public Stream<std::string, std::string> {
+class TPCStream : public Stream<int32_t, std::string> {
  public:
   TPCStream(const std::string &file_path, int key_column, int value_column);
 
   ~TPCStream() override;
 
-  auto read(TsType &timestamp, std::string &key, std::string &value) -> bool override;
+  auto read(TsType &timestamp, int32_t &key, std::string &value) -> bool override;
 
   auto available() -> bool override;
 

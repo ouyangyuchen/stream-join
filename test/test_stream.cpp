@@ -49,30 +49,31 @@ TEST(StreamTest, RandomStreamIllegalRange) {
 }
 
 TEST(StreamTest, TPCStream) {
-  stream::TPCStream stream("../data/tpc-h/nation.tbl", 2, 3);
+  stream::TPCStream stream("../data/tpc-h/nation.tbl", 1, 2);
   stream::TsType timestamp;
-  std::string key, value;
+  int32_t key;
+  std::string value;
 
   ASSERT_TRUE(stream.available());
   ASSERT_FALSE(stream.eof());
   ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 0);
-  ASSERT_EQ(key, "ALGERIA");
-  ASSERT_EQ(value, "0");
+  ASSERT_EQ(key, 0);
+  ASSERT_EQ(value, "ALGERIA");
 
   ASSERT_TRUE(stream.available());
   ASSERT_FALSE(stream.eof());
   ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 1);
-  ASSERT_EQ(key, "ARGENTINA");
-  ASSERT_EQ(value, "1");
+  ASSERT_EQ(key, 1);
+  ASSERT_EQ(value, "ARGENTINA");
 
   ASSERT_TRUE(stream.available());
   ASSERT_FALSE(stream.eof());
   ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 2);
-  ASSERT_EQ(key, "BRAZIL");
-  ASSERT_EQ(value, "1");
+  ASSERT_EQ(key, 2);
+  ASSERT_EQ(value, "BRAZIL");
 
   for (int i = 3; i < 25; ++i) {
     ASSERT_TRUE(stream.available());
@@ -87,17 +88,17 @@ TEST(StreamTest, TPCStream) {
   stream::TPCStream stream2("../data/tpc-h/nation.tbl", 3, 2);
   ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 0);
-  ASSERT_EQ(key, "0");
+  ASSERT_EQ(key, 0);
   ASSERT_EQ(value, "ALGERIA");
 
   ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 1);
-  ASSERT_EQ(key, "1");
+  ASSERT_EQ(key, 1);
   ASSERT_EQ(value, "ARGENTINA");
 
   ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 2);
-  ASSERT_EQ(key, "1");
+  ASSERT_EQ(key, 1);
   ASSERT_EQ(value, "BRAZIL");
 
   ASSERT_FALSE(stream2.eof());
@@ -110,7 +111,8 @@ TEST(StreamTest, TPCStreamIllegal) {
   // column out of range
   stream::TPCStream stream("../data/tpc-h/nation.tbl", 5, 2);
   stream::TsType timestamp;
-  std::string key, value;
+  int32_t key;
+  std::string value;
   ASSERT_THROW(stream.read(timestamp, key, value), std::runtime_error);
 
   stream::TPCStream stream2("../data/tpc-h/nation.tbl", 2, 5);
