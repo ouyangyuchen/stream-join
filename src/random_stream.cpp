@@ -12,7 +12,7 @@ stream::RandomStream::RandomStream(const TsType end_timestamp,
   }
 }
 
-auto stream::RandomStream::Read(TsType &timestamp, int32_t &key, int32_t &value) -> bool {
+auto stream::RandomStream::read(TsType &timestamp, int32_t &key, int32_t &value) -> bool {
   if (start_timestamp_ >= end_timestamp_) {
     return false;
   }
@@ -21,3 +21,7 @@ auto stream::RandomStream::Read(TsType &timestamp, int32_t &key, int32_t &value)
   value = key;
   return true;
 }
+
+auto stream::RandomStream::available() -> bool { return start_timestamp_ < end_timestamp_; }
+
+auto stream::RandomStream::eof() -> bool { return start_timestamp_ >= end_timestamp_; }

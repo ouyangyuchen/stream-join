@@ -19,7 +19,11 @@ class TPCStream : public Stream<std::string, std::string> {
 
   ~TPCStream() override;
 
-  auto Read(TsType &timestamp, std::string &key, std::string &value) -> bool override;
+  auto read(TsType &timestamp, std::string &key, std::string &value) -> bool override;
+
+  auto available() -> bool override;
+
+  auto eof() -> bool override;
 
  private:
   std::ifstream file_;

@@ -19,6 +19,12 @@ class Stream {
 
   // Read the next key, value pair from the stream with the current timestamp.
   // Returns true if the next key, value pair is read successfully, false otherwise.
-  virtual auto Read(TsType &timestamp, KeyType &key, ValueType &value) -> bool = 0;
+  virtual auto read(TsType &timestamp, KeyType &key, ValueType &value) -> bool = 0;
+
+  // Check if the stream is ready to read the next key, value pair non-blockingly.
+  virtual auto available() -> bool = 0;
+
+  // Check if the stream has reached the end.
+  virtual auto eof() -> bool = 0;
 };
 }  // namespace stream

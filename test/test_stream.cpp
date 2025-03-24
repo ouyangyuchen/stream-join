@@ -14,13 +14,17 @@ TEST(StreamTest, RandomStream) {
   stream::TsType timestamp;
   int32_t key, value;
   for (int i = 0; i < 10; ++i) {
-    ASSERT_TRUE(stream.Read(timestamp, key, value));
+    ASSERT_TRUE(stream.available());
+    ASSERT_FALSE(stream.eof());
+    ASSERT_TRUE(stream.read(timestamp, key, value));
     ASSERT_EQ(timestamp, i);
     ASSERT_GE(key, 0);
     ASSERT_LE(key, 9);
     ASSERT_EQ(key, value);
   }
-  ASSERT_FALSE(stream.Read(timestamp, key, value));
+  ASSERT_FALSE(stream.available());
+  ASSERT_TRUE(stream.eof());
+  ASSERT_FALSE(stream.read(timestamp, key, value));
 }
 
 TEST(StreamTest, RandomStreamLong) {
@@ -28,13 +32,16 @@ TEST(StreamTest, RandomStreamLong) {
   stream::TsType timestamp;
   int32_t key, value;
   for (int i = 0; i < 1000000; ++i) {
-    ASSERT_TRUE(stream.Read(timestamp, key, value));
+    ASSERT_TRUE(stream.available());
+    ASSERT_TRUE(stream.read(timestamp, key, value));
     ASSERT_EQ(timestamp, i);
     ASSERT_GE(key, 1);
     ASSERT_LE(key, 2560);
     ASSERT_EQ(key, value);
   }
-  ASSERT_FALSE(stream.Read(timestamp, key, value));
+  ASSERT_FALSE(stream.available());
+  ASSERT_TRUE(stream.eof());
+  ASSERT_FALSE(stream.read(timestamp, key, value));
 }
 
 TEST(StreamTest, RandomStreamIllegalRange) {
@@ -46,42 +53,54 @@ TEST(StreamTest, TPCStream) {
   stream::TsType timestamp;
   std::string key, value;
 
-  ASSERT_TRUE(stream.Read(timestamp, key, value));
+  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.eof());
+  ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 0);
   ASSERT_EQ(key, "ALGERIA");
   ASSERT_EQ(value, "0");
 
-  ASSERT_TRUE(stream.Read(timestamp, key, value));
+  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.eof());
+  ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 1);
   ASSERT_EQ(key, "ARGENTINA");
   ASSERT_EQ(value, "1");
 
-  ASSERT_TRUE(stream.Read(timestamp, key, value));
+  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.eof());
+  ASSERT_TRUE(stream.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 2);
   ASSERT_EQ(key, "BRAZIL");
   ASSERT_EQ(value, "1");
 
   for (int i = 3; i < 25; ++i) {
-    ASSERT_TRUE(stream.Read(timestamp, key, value));
+    ASSERT_TRUE(stream.available());
+    ASSERT_FALSE(stream.eof());
+    ASSERT_TRUE(stream.read(timestamp, key, value));
     ASSERT_EQ(timestamp, i);
   }
-  ASSERT_FALSE(stream.Read(timestamp, key, value));
+  ASSERT_FALSE(stream.available());
+  ASSERT_TRUE(stream.eof());
+  ASSERT_FALSE(stream.read(timestamp, key, value));
 
   stream::TPCStream stream2("../data/tpc-h/nation.tbl", 3, 2);
-  ASSERT_TRUE(stream2.Read(timestamp, key, value));
+  ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 0);
   ASSERT_EQ(key, "0");
   ASSERT_EQ(value, "ALGERIA");
 
-  ASSERT_TRUE(stream2.Read(timestamp, key, value));
+  ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 1);
   ASSERT_EQ(key, "1");
   ASSERT_EQ(value, "ARGENTINA");
 
-  ASSERT_TRUE(stream2.Read(timestamp, key, value));
+  ASSERT_TRUE(stream2.read(timestamp, key, value));
   ASSERT_EQ(timestamp, 2);
   ASSERT_EQ(key, "1");
   ASSERT_EQ(value, "BRAZIL");
+
+  ASSERT_FALSE(stream2.eof());
 }
 
 TEST(StreamTest, TPCStreamIllegal) {
@@ -92,8 +111,8 @@ TEST(StreamTest, TPCStreamIllegal) {
   stream::TPCStream stream("../data/tpc-h/nation.tbl", 5, 2);
   stream::TsType timestamp;
   std::string key, value;
-  ASSERT_THROW(stream.Read(timestamp, key, value), std::runtime_error);
+  ASSERT_THROW(stream.read(timestamp, key, value), std::runtime_error);
 
   stream::TPCStream stream2("../data/tpc-h/nation.tbl", 2, 5);
-  ASSERT_THROW(stream2.Read(timestamp, key, value), std::runtime_error);
+  ASSERT_THROW(stream2.read(timestamp, key, value), std::runtime_error);
 }

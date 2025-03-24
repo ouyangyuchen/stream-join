@@ -21,7 +21,7 @@ stream::TPCStream::TPCStream(const std::string &file_path, int32_t key_column, i
 
 stream::TPCStream::~TPCStream() { file_.close(); }
 
-auto stream::TPCStream::Read(TsType &timestamp, std::string &key, std::string &value) -> bool {
+auto stream::TPCStream::read(TsType &timestamp, std::string &key, std::string &value) -> bool {
   std::string line;
   if (!std::getline(file_, line)) {
     return false;
@@ -63,3 +63,7 @@ auto stream::TPCStream::Read(TsType &timestamp, std::string &key, std::string &v
   timestamp = timestamp_++;
   return true;
 }
+
+auto stream::TPCStream::available() -> bool { return file_.good(); }
+
+auto stream::TPCStream::eof() -> bool { return file_.eof(); }

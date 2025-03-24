@@ -17,7 +17,9 @@ class RandomStream : public Stream<int32_t, int32_t> {
  public:
   RandomStream(const TsType end_timestamp, const std::pair<int32_t, int32_t> &key_range);
 
-  auto Read(TsType &timestamp, int32_t &key, int32_t &value) -> bool override;
+  auto read(TsType &timestamp, int32_t &key, int32_t &value) -> bool override;
+  auto available() -> bool override;
+  auto eof() -> bool override;
 
  private:
   TsType start_timestamp_;
