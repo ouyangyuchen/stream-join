@@ -15,38 +15,38 @@ using TupleType = std::tuple<TsType, KVPair<KeyType, ValueType>>;
 
 // helper functions to access tuple elements
 template <typename KeyType, typename ValueType>
-static auto get_timestamp(const TupleType<KeyType, ValueType> &tuple) -> TsType {
+static auto GetTimestamp(const TupleType<KeyType, ValueType> &tuple) -> TsType {
   return std::get<0>(tuple);
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_key(const TupleType<KeyType, ValueType> &tuple) -> KeyType {
+static auto GetKey(const TupleType<KeyType, ValueType> &tuple) -> KeyType {
   return std::get<1>(tuple).first;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_value(const TupleType<KeyType, ValueType> &tuple) -> ValueType {
+static auto GetValue(const TupleType<KeyType, ValueType> &tuple) -> ValueType {
   return std::get<1>(tuple).second;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_timestamp(TupleType<KeyType, ValueType> &tuple) -> TsType & {
+static auto GetTimestamp(TupleType<KeyType, ValueType> &tuple) -> TsType & {
   return std::get<0>(tuple);
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_key(TupleType<KeyType, ValueType> &tuple) -> KeyType & {
+static auto GetKey(TupleType<KeyType, ValueType> &tuple) -> KeyType & {
   return std::get<1>(tuple).first;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_value(TupleType<KeyType, ValueType> &tuple) -> ValueType & {
+static auto GetValue(TupleType<KeyType, ValueType> &tuple) -> ValueType & {
   return std::get<1>(tuple).second;
 }
 
 template <typename KeyType, typename ValueType>
-static auto make_tuple(const TsType &timestamp, const KeyType &key,
-                       const ValueType &value) -> TupleType<KeyType, ValueType> {
+static auto MakeTuple(const TsType &timestamp, const KeyType &key, const ValueType &value)
+    -> TupleType<KeyType, ValueType> {
   return std::make_tuple(timestamp, std::make_pair(key, value));
 }
 
