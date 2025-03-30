@@ -40,11 +40,18 @@ find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
 
 # Add test executable
+add_executable(unit_test
+    test/test_main.cpp
+    test/test_stream.cpp
+)
 
 # Include directories and link libraries
+include_directories(${GTEST_INCLUDE_DIRS})
+target_link_libraries(unit_test GTest::GTest GTest::Main Threads::Threads)
 
 # Add test target
 include(GoogleTest)
+gtest_discover_tests(unit_test)
 
 # Find clang-format and clang-tidy
 find_program(CLANG_FORMAT "clang-format")
