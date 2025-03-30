@@ -67,7 +67,7 @@ class BroadcastJoinSingleThread : public Join<KeyType, ValueType> {
           break;
       }
     }
-    this->os_ << "[Total Count]: " << join_count << "\n";
+    std::cout << "[Total Count]: " << join_count << "\n";
   }
 };
 
