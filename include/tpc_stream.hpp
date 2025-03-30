@@ -14,7 +14,7 @@ namespace stream {
 class TPCStream : public Stream<int64_t, std::string> {
  public:
   TPCStream(const std::string &file_path, const int key_column, const int value_column)
-      : timestamp_(0), file_(file_path), key_column_(key_column), value_column_(value_column) {
+      : file_(file_path), key_column_(key_column), value_column_(value_column) {
     if (!file_.is_open()) {
       throw std::runtime_error("Failed to open file: " + file_path);
     }
@@ -26,8 +26,10 @@ class TPCStream : public Stream<int64_t, std::string> {
   ~TPCStream() override { file_.close(); }
 
   // Read a tuple from the stream
-  TPCStream &operator>>(TupleType<int64_t, std::string> &tuple) override {
-    if (this->eof()) throw std::runtime_error("End of stream reached");
+  auto operator>>(TupleType<int64_t, std::string> &tuple) -> TPCStream & override {
+    if (this->Eof()) {
+      throw std::runtime_error("End of stream reached");
+    }
 
     std::string line;
     if (!std::getline(file_, line)) {
@@ -66,19 +68,19 @@ class TPCStream : public Stream<int64_t, std::string> {
       }
     }
 
-    tuple = make_tuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
+    tuple = MakeTuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
     return *this;
   }
 
-  auto available() -> bool override { return file_.good(); }
+  auto Available() -> bool override { return file_.good(); }
 
-  auto eof() -> bool override { return file_.eof(); }
+  auto Eof() -> bool override { return file_.eof(); }
 
  private:
   std::ifstream file_;
   int key_column_;
   int value_column_;
-  TsType timestamp_;
+  TsType timestamp_{};
 };
 
 }  // namespace stream

@@ -11,13 +11,13 @@ class Stream {
   virtual ~Stream() = default;
 
   // Read a tuple from the stream
-  virtual Stream<KeyType, ValueType> &operator>>(TupleType<KeyType, ValueType> &tuple) = 0;
+  virtual auto operator>>(TupleType<KeyType, ValueType> &tuple) -> Stream<KeyType, ValueType> & = 0;
 
   // Check if there are more than one tuple available for reading
-  virtual auto available() -> bool = 0;
+  virtual auto Available() -> bool = 0;
 
   // Check if the end of the stream is reached
-  virtual auto eof() -> bool = 0;
+  virtual auto Eof() -> bool = 0;
 };
 }  // namespace stream
 

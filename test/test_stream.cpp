@@ -8,32 +8,32 @@ TEST(StreamTest, RandomStreamBasic) {
   stream::TupleType<int32_t, int32_t> tuple;
 
   // Check if the stream is not at EOF
-  ASSERT_FALSE(stream.eof());
-  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.Eof());
+  ASSERT_TRUE(stream.Available());
 
   // Read a tuple from the stream
   stream >> tuple;
 
   // Check if the tuple is valid
-  ASSERT_EQ(stream::get_timestamp(tuple), 0);
-  ASSERT_GE(stream::get_key(tuple), 0);
-  ASSERT_LE(stream::get_key(tuple), 10);
+  ASSERT_EQ(stream::GetTimestamp(tuple), 0);
+  ASSERT_GE(stream::GetKey(tuple), 0);
+  ASSERT_LE(stream::GetKey(tuple), 10);
 
   // Check if the stream is not at EOF after reading one tuple
-  ASSERT_FALSE(stream.eof());
+  ASSERT_FALSE(stream.Eof());
 
   // Read until EOF
   for (int i = 1; i < 100; ++i) {
-    ASSERT_TRUE(stream.available());
+    ASSERT_TRUE(stream.Available());
     stream >> tuple;
-    ASSERT_EQ(stream::get_timestamp(tuple), i);
-    ASSERT_GE(stream::get_key(tuple), 0);
-    ASSERT_LE(stream::get_key(tuple), 10);
+    ASSERT_EQ(stream::GetTimestamp(tuple), i);
+    ASSERT_GE(stream::GetKey(tuple), 0);
+    ASSERT_LE(stream::GetKey(tuple), 10);
   }
 
   // Check if the stream is at EOF after reading all tuples
-  ASSERT_FALSE(stream.available());
-  ASSERT_TRUE(stream.eof());
+  ASSERT_FALSE(stream.Available());
+  ASSERT_TRUE(stream.Eof());
 }
 
 TEST(StreamTest, TPCStreamBasic) {
@@ -45,36 +45,36 @@ TEST(StreamTest, TPCStreamBasic) {
   stream::TupleType<int64_t, std::string> tuple;
 
   // Check if the stream is not at EOF
-  ASSERT_FALSE(stream.eof());
-  ASSERT_TRUE(stream.available());
+  ASSERT_FALSE(stream.Eof());
+  ASSERT_TRUE(stream.Available());
 
   // Read a tuple from the stream
   stream >> tuple;
-  ASSERT_EQ(stream::get_timestamp(tuple), 0);
-  ASSERT_EQ(stream::get_key(tuple), 0);
-  ASSERT_EQ(stream::get_value(tuple), "ALGERIA");
+  ASSERT_EQ(stream::GetTimestamp(tuple), 0);
+  ASSERT_EQ(stream::GetKey(tuple), 0);
+  ASSERT_EQ(stream::GetValue(tuple), "ALGERIA");
 
   stream >> tuple;
-  ASSERT_EQ(stream::get_timestamp(tuple), 1);
-  ASSERT_EQ(stream::get_key(tuple), 1);
-  ASSERT_EQ(stream::get_value(tuple), "ARGENTINA");
+  ASSERT_EQ(stream::GetTimestamp(tuple), 1);
+  ASSERT_EQ(stream::GetKey(tuple), 1);
+  ASSERT_EQ(stream::GetValue(tuple), "ARGENTINA");
 
   stream >> tuple;
-  ASSERT_EQ(stream::get_timestamp(tuple), 2);
-  ASSERT_EQ(stream::get_key(tuple), 1);
-  ASSERT_EQ(stream::get_value(tuple), "BRAZIL");
+  ASSERT_EQ(stream::GetTimestamp(tuple), 2);
+  ASSERT_EQ(stream::GetKey(tuple), 1);
+  ASSERT_EQ(stream::GetValue(tuple), "BRAZIL");
 
   // Check if the stream is not at EOF after reading one tuple
-  ASSERT_FALSE(stream.eof());
+  ASSERT_FALSE(stream.Eof());
 
   // read until eof
   for (int i = 3; i < 25; i++) {
-    ASSERT_TRUE(stream.available());
+    ASSERT_TRUE(stream.Available());
     stream >> tuple;
-    ASSERT_EQ(stream::get_timestamp(tuple), i);
+    ASSERT_EQ(stream::GetTimestamp(tuple), i);
     // ASSERT_EQ(stream::get_key(tuple), i);
   }
 
-  ASSERT_FALSE(stream.available());
-  ASSERT_TRUE(stream.eof());
+  ASSERT_FALSE(stream.Available());
+  ASSERT_TRUE(stream.Eof());
 }
