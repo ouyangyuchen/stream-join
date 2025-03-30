@@ -44,6 +44,12 @@ static auto get_value(TupleType<KeyType, ValueType> &tuple) -> ValueType & {
   return std::get<1>(tuple).second;
 }
 
+template <typename KeyType, typename ValueType>
+static auto make_tuple(const TsType &timestamp, const KeyType &key,
+                       const ValueType &value) -> TupleType<KeyType, ValueType> {
+  return std::make_tuple(timestamp, std::make_pair(key, value));
+}
+
 };  // namespace stream
 
 #endif
