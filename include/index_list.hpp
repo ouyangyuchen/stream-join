@@ -1,0 +1,75 @@
+#ifndef INDEX_LIST_HPP_
+#define INDEX_LIST_HPP_
+
+#include <deque>
+#include "index.hpp"
+
+namespace stream {
+
+template <typename KeyType, typename ValueType>
+class ListIndex : public WindowIndex<KeyType, ValueType> {
+ public:
+  ListIndex() = default;
+
+  ~ListIndex() override = default;
+
+  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> void override;
+
+  auto PopOldest() -> TupleType<KeyType, ValueType> override;
+
+  auto RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
+      -> std::vector<TupleType<KeyType, ValueType>> override;
+
+  auto Size() const -> size_t override;
+
+  auto Empty() const -> bool override;
+
+ private:
+  std::deque<TupleType<KeyType, ValueType>> index_;  // list to store tuples in the arrival order
+};
+
+}  // namespace stream
+
+// Implementation of ListIndex methods
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple)
+    -> void {
+  index_.push_back(tuple);
+}
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, ValueType> {
+  if (index_.empty()) {
+    throw std::out_of_range("Index is empty");
+  }
+  auto oldest = index_.front();
+  index_.pop_front();
+  return oldest;
+}
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::RangeSearch(
+    const std::pair<KeyType, KeyType> &key_range) const
+    -> std::vector<TupleType<KeyType, ValueType>> {
+  std::vector<TupleType<KeyType, ValueType>> result;
+  for (const auto &tuple : index_) {
+    const KeyType &key = GetKey<KeyType, ValueType>(tuple);
+    if (key >= key_range.first && key <= key_range.second) {
+      result.push_back(tuple);
+    }
+  }
+  return result;
+}
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::Size() const -> size_t {
+  return index_.size();
+}
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::Empty() const -> bool {
+  return index_.empty();
+}
+
+#endif
