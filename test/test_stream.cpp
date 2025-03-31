@@ -5,7 +5,7 @@
 
 TEST(StreamTest, RandomStreamBasic) {
   stream::RandomStream stream(100, {0, 10});
-  stream::TupleType<int32_t, int32_t> tuple;
+  stream::TupleType<int64_t, int64_t> tuple;
 
   // Check if the stream is not at EOF
   ASSERT_FALSE(stream.Eof());
