@@ -8,46 +8,47 @@ namespace stream {
 using TsType = int64_t;  // timestamp type
 
 template <typename KeyType, typename ValueType>
-using KVPair = std::pair<KeyType, ValueType>;
-
-template <typename KeyType, typename ValueType>
-using TupleType = std::tuple<TsType, KVPair<KeyType, ValueType>>;
+struct TupleType {
+  TsType timestamp_;
+  KeyType key_;
+  ValueType value_;
+};
 
 // helper functions to access tuple elements
 template <typename KeyType, typename ValueType>
-static auto get_timestamp(const TupleType<KeyType, ValueType> &tuple) -> TsType {
-  return std::get<0>(tuple);
+static auto GetTimestamp(const TupleType<KeyType, ValueType> &tuple) -> TsType {
+  return tuple.timestamp_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_key(const TupleType<KeyType, ValueType> &tuple) -> KeyType {
-  return std::get<1>(tuple).first;
+static auto GetKey(const TupleType<KeyType, ValueType> &tuple) -> KeyType {
+  return tuple.key_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_value(const TupleType<KeyType, ValueType> &tuple) -> ValueType {
-  return std::get<1>(tuple).second;
+static auto GetValue(const TupleType<KeyType, ValueType> &tuple) -> ValueType {
+  return tuple.value_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_timestamp(TupleType<KeyType, ValueType> &tuple) -> TsType & {
-  return std::get<0>(tuple);
+static auto GetTimestamp(TupleType<KeyType, ValueType> &tuple) -> TsType & {
+  return tuple.timestamp_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_key(TupleType<KeyType, ValueType> &tuple) -> KeyType & {
-  return std::get<1>(tuple).first;
+static auto GetKey(TupleType<KeyType, ValueType> &tuple) -> KeyType & {
+  return tuple.key_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto get_value(TupleType<KeyType, ValueType> &tuple) -> ValueType & {
-  return std::get<1>(tuple).second;
+static auto GetValue(TupleType<KeyType, ValueType> &tuple) -> ValueType & {
+  return tuple.value_;
 }
 
 template <typename KeyType, typename ValueType>
-static auto make_tuple(const TsType &timestamp, const KeyType &key,
-                       const ValueType &value) -> TupleType<KeyType, ValueType> {
-  return std::make_tuple(timestamp, std::make_pair(key, value));
+static auto MakeTuple(const TsType &timestamp, const KeyType &key, const ValueType &value)
+    -> TupleType<KeyType, ValueType> {
+  return {timestamp, key, value};
 }
 
 };  // namespace stream
