@@ -89,7 +89,8 @@ auto stream::TPCStream::operator>>(TupleType<int64_t, std::string> &tuple) -> TP
     }
   }
 
-  tuple = MakeTuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
+  tuple = {timestamp_, std::stoll(key_token), value_token};
+  timestamp_++;
   return *this;
 }
 

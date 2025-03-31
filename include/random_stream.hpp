@@ -43,7 +43,8 @@ auto stream::RandomStream::operator>>(TupleType<int64_t, int64_t> &tuple) -> Ran
   }
   // generate a random number within the key range
   int64_t key = generator_() % (key_range_.second - key_range_.first + 1) + key_range_.first;
-  tuple = MakeTuple(start_timestamp_++, key, key);
+  tuple = {start_timestamp_, key, key};
+  start_timestamp_++;
   return *this;
 }
 
