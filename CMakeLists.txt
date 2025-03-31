@@ -43,6 +43,7 @@ find_package(Threads REQUIRED)
 add_executable(unit_test
     test/test_main.cpp
     test/test_index.cpp
+    test/test_stream.cpp
 )
 
 # Include directories and link libraries
@@ -51,6 +52,7 @@ target_link_libraries(unit_test
     GTest::Main
     Threads::Threads
 )
+include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add test target
 include(GoogleTest)
