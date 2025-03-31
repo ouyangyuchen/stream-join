@@ -13,68 +13,16 @@ namespace stream {
 // TPCStream reads tuples from a TPC-H dataset file. The keys should be comparable.
 class TPCStream : public Stream<int64_t, std::string> {
  public:
-  TPCStream(const std::string &file_path, const int key_column, const int value_column)
-      : file_(file_path), key_column_(key_column), value_column_(value_column) {
-    if (!file_.is_open()) {
-      throw std::runtime_error("Failed to open file: " + file_path);
-    }
-    if (key_column_ < 0 || value_column_ < 0) {
-      throw std::invalid_argument("Invalid column index");
-    }
-  }
+  TPCStream(const std::string &file_path, int key_column, int value_column);
 
-  ~TPCStream() override { file_.close(); }
+  ~TPCStream() override;
 
   // Read a tuple from the stream
-  auto operator>>(TupleType<int64_t, std::string> &tuple) -> TPCStream & override {
-    if (this->Eof()) {
-      throw std::runtime_error("End of stream reached");
-    }
+  auto operator>>(TupleType<int64_t, std::string> &tuple) -> TPCStream & override;
 
-    std::string line;
-    if (!std::getline(file_, line)) {
-      throw std::runtime_error("Failed to read line from file");
-    }
-    std::stringstream ss(line);
+  auto Available() -> bool override;
 
-    // read the key and value columns from the line string
-    std::string key_token;
-    std::string value_token;
-    if (key_column_ < value_column_) {  // key is before value
-      for (int i = 0; i < key_column_; ++i) {
-        if (ss.eof()) {
-          throw std::runtime_error("Unexpected end of file");
-        }
-        std::getline(ss, key_token, '|');
-      }
-      for (int i = key_column_; i < value_column_; ++i) {
-        if (ss.eof()) {
-          throw std::runtime_error("Unexpected end of file");
-        }
-        std::getline(ss, value_token, '|');
-      }
-    } else {  // value is before key
-      for (int i = 0; i < value_column_; ++i) {
-        if (ss.eof()) {
-          throw std::runtime_error("Unexpected end of file");
-        }
-        std::getline(ss, value_token, '|');
-      }
-      for (int i = value_column_; i < key_column_; ++i) {
-        if (ss.eof()) {
-          throw std::runtime_error("Unexpected end of file");
-        }
-        std::getline(ss, key_token, '|');
-      }
-    }
-
-    tuple = MakeTuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
-    return *this;
-  }
-
-  auto Available() -> bool override { return file_.good(); }
-
-  auto Eof() -> bool override { return file_.eof(); }
+  auto Eof() -> bool override;
 
  private:
   std::ifstream file_;
@@ -84,5 +32,69 @@ class TPCStream : public Stream<int64_t, std::string> {
 };
 
 }  // namespace stream
+
+stream::TPCStream::TPCStream(const std::string &file_path, const int key_column,
+                             const int value_column)
+    : file_(file_path), key_column_(key_column), value_column_(value_column) {
+  if (!file_.is_open()) {
+    throw std::runtime_error("Failed to open file: " + file_path);
+  }
+  if (key_column_ < 0 || value_column_ < 0) {
+    throw std::invalid_argument("Invalid column index");
+  }
+}
+
+stream::TPCStream::~TPCStream() { file_.close(); }
+
+// Read a tuple from the stream
+auto stream::TPCStream::operator>>(TupleType<int64_t, std::string> &tuple) -> TPCStream & {
+  if (this->Eof()) {
+    throw std::runtime_error("End of stream reached");
+  }
+
+  std::string line;
+  if (!std::getline(file_, line)) {
+    throw std::runtime_error("Failed to read line from file");
+  }
+  std::stringstream ss(line);
+
+  // read the key and value columns from the line string
+  std::string key_token;
+  std::string value_token;
+  if (key_column_ < value_column_) {  // key is before value
+    for (int i = 0; i < key_column_; ++i) {
+      if (ss.eof()) {
+        throw std::runtime_error("Unexpected end of file");
+      }
+      std::getline(ss, key_token, '|');
+    }
+    for (int i = key_column_; i < value_column_; ++i) {
+      if (ss.eof()) {
+        throw std::runtime_error("Unexpected end of file");
+      }
+      std::getline(ss, value_token, '|');
+    }
+  } else {  // value is before key
+    for (int i = 0; i < value_column_; ++i) {
+      if (ss.eof()) {
+        throw std::runtime_error("Unexpected end of file");
+      }
+      std::getline(ss, value_token, '|');
+    }
+    for (int i = value_column_; i < key_column_; ++i) {
+      if (ss.eof()) {
+        throw std::runtime_error("Unexpected end of file");
+      }
+      std::getline(ss, key_token, '|');
+    }
+  }
+
+  tuple = MakeTuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
+  return *this;
+}
+
+auto stream::TPCStream::Available() -> bool { return file_.good(); }
+
+auto stream::TPCStream::Eof() -> bool { return file_.eof(); }
 
 #endif  // TPC_STREAM_HPP_
