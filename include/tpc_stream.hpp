@@ -68,7 +68,7 @@ class TPCStream : public Stream<int64_t, std::string> {
       }
     }
 
-    tuple = MakeTuple<int64_t, std::string>(timestamp_++, std::stoi(key_token), value_token);
+    tuple = {timestamp_++, std::stoi(key_token), value_token};
     return *this;
   }
 

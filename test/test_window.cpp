@@ -10,6 +10,9 @@
 #include "utils.hpp"
 #include "window.hpp"
 
+using stream::TsType;
+using stream::TupleType;
+
 TEST(WindowTest, SubWindowFlowThrough) {
   // Create a channel for the subwindow
   auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(10);
@@ -25,36 +28,36 @@ TEST(WindowTest, SubWindowFlowThrough) {
 
   // Send some tuples to the channel, should be seen at the output channel
   for (int i = 0; i < 10; ++i) {
-    auto tuple = stream::MakeTuple<int64_t, int64_t>(i, i + 1, i * 10);
+    TupleType<int64_t, int64_t> tuple{i, i + 1, i * 10};
     (*input_chan) << tuple;
   }
   for (int i = 0; i < 10; ++i) {
-    stream::TupleType<int64_t, int64_t> tuple;
+    TupleType<int64_t, int64_t> tuple;
     *output_chan >> tuple;
-    ASSERT_EQ(stream::GetTimestamp(tuple), i);
-    ASSERT_EQ(stream::GetKey(tuple), i + 1);
-    ASSERT_EQ(stream::GetValue(tuple), i * 10);
+    ASSERT_EQ(tuple.timestamp_, i);
+    ASSERT_EQ(tuple.key_, i + 1);
+    ASSERT_EQ(tuple.value_, i * 10);
   }
   ASSERT_TRUE(output_chan->empty());
   ASSERT_FALSE(output_chan->closed());
 
   // send more tuples to the channel, close the channel, should see the tuples and closed flag
   for (int i = 10; i < 20; ++i) {
-    auto tuple = stream::MakeTuple<int64_t, int64_t>(i, i + 1, i * 10);
+    TupleType<int64_t, int64_t> tuple{i, i + 1, i * 10};
     (*input_chan) << tuple;
   }
   input_chan->close();
-  for (int i = 10; i < 20; ++i) {
-    stream::TupleType<int64_t, int64_t> tuple;
-    *output_chan >> tuple;
-    ASSERT_EQ(stream::GetTimestamp(tuple), i);
-    ASSERT_EQ(stream::GetKey(tuple), i + 1);
-    ASSERT_EQ(stream::GetValue(tuple), i * 10);
+
+  TsType ts = 10;
+  for (const auto &tuple : *output_chan) {
+    ASSERT_EQ(tuple.timestamp_, ts);
+    ASSERT_EQ(tuple.key_, ts + 1);
+    ASSERT_EQ(tuple.value_, ts * 10);
+    ts++;
   }
-  ASSERT_TRUE(output_chan->empty());
-  std::this_thread::sleep_for(
-      std::chrono::milliseconds(100));  // flow thread should close the channel
+  ASSERT_EQ(ts, 20);
   ASSERT_TRUE(output_chan->closed());
+  ASSERT_TRUE(output_chan->empty());
 
   // Wait for the flow thread to finish
   if (flow_thread.joinable()) {
@@ -80,11 +83,11 @@ TEST(WindowTest, WindowFlowRandomStream) {
   auto watcher = [&endpoint, range, num_tuples]() {
     stream::TupleType<int64_t, int64_t> tuple;
     stream::TsType ts = 0;
-    for (auto &tuple : *endpoint) {
-      ASSERT_EQ(stream::GetTimestamp(tuple), ts);
-      ASSERT_GE(stream::GetKey(tuple), range.first);
-      ASSERT_LE(stream::GetKey(tuple), range.second);
-      ASSERT_EQ(stream::GetKey(tuple), stream::GetValue(tuple));
+    for (const auto &tuple : *endpoint) {
+      ASSERT_EQ(tuple.timestamp_, ts);
+      ASSERT_GE(tuple.key_, range.first);
+      ASSERT_LE(tuple.key_, range.second);
+      ASSERT_EQ(tuple.key_, tuple.value_);
       ts++;
     }
     ASSERT_EQ(ts, num_tuples);
@@ -116,9 +119,9 @@ TEST(WindowTest, WindowFlowFileStream) {
   auto watcher = [&endpoint, num_tuples]() {
     stream::TupleType<int64_t, std::string> tuple;
     stream::TsType ts = 0;
-    for (auto &tuple : *endpoint) {
-      ASSERT_EQ(stream::GetTimestamp(tuple), ts);
-      // ASSERT_EQ(stream::GetKey(tuple), ts);
+    for (const auto &tuple : *endpoint) {
+      ASSERT_EQ(tuple.timestamp_, ts);
+      // ASSERT_EQ(tuple.key_, ts);
       ts++;
     }
     ASSERT_EQ(ts, num_tuples);

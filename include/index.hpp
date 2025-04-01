@@ -1,6 +1,7 @@
 #ifndef INDEX_HPP_
 #define INDEX_HPP_
 
+#include <utility>
 #include "utils.hpp"
 
 namespace stream {

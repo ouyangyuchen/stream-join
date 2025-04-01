@@ -15,9 +15,9 @@ TEST(StreamTest, RandomStreamBasic) {
   stream >> tuple;
 
   // Check if the tuple is valid
-  ASSERT_EQ(stream::GetTimestamp(tuple), 0);
-  ASSERT_GE(stream::GetKey(tuple), 0);
-  ASSERT_LE(stream::GetKey(tuple), 10);
+  ASSERT_EQ(tuple.timestamp_, 0);
+  ASSERT_GE(tuple.key_, 0);
+  ASSERT_LE(tuple.key_, 10);
 
   // Check if the stream is not at EOF after reading one tuple
   ASSERT_FALSE(stream.Eof());
@@ -26,9 +26,9 @@ TEST(StreamTest, RandomStreamBasic) {
   for (int i = 1; i < 100; ++i) {
     ASSERT_TRUE(stream.Available());
     stream >> tuple;
-    ASSERT_EQ(stream::GetTimestamp(tuple), i);
-    ASSERT_GE(stream::GetKey(tuple), 0);
-    ASSERT_LE(stream::GetKey(tuple), 10);
+    ASSERT_EQ(tuple.timestamp_, i);
+    ASSERT_GE(tuple.key_, 0);
+    ASSERT_LE(tuple.key_, 10);
   }
 
   // Check if the stream is at EOF after reading all tuples
@@ -50,19 +50,19 @@ TEST(StreamTest, TPCStreamBasic) {
 
   // Read a tuple from the stream
   stream >> tuple;
-  ASSERT_EQ(stream::GetTimestamp(tuple), 0);
-  ASSERT_EQ(stream::GetKey(tuple), 0);
-  ASSERT_EQ(stream::GetValue(tuple), "ALGERIA");
+  ASSERT_EQ(tuple.timestamp_, 0);
+  ASSERT_EQ(tuple.key_, 0);
+  ASSERT_EQ(tuple.value_, "ALGERIA");
 
   stream >> tuple;
-  ASSERT_EQ(stream::GetTimestamp(tuple), 1);
-  ASSERT_EQ(stream::GetKey(tuple), 1);
-  ASSERT_EQ(stream::GetValue(tuple), "ARGENTINA");
+  ASSERT_EQ(tuple.timestamp_, 1);
+  ASSERT_EQ(tuple.key_, 1);
+  ASSERT_EQ(tuple.value_, "ARGENTINA");
 
   stream >> tuple;
-  ASSERT_EQ(stream::GetTimestamp(tuple), 2);
-  ASSERT_EQ(stream::GetKey(tuple), 1);
-  ASSERT_EQ(stream::GetValue(tuple), "BRAZIL");
+  ASSERT_EQ(tuple.timestamp_, 2);
+  ASSERT_EQ(tuple.key_, 1);
+  ASSERT_EQ(tuple.value_, "BRAZIL");
 
   // Check if the stream is not at EOF after reading one tuple
   ASSERT_FALSE(stream.Eof());
@@ -71,7 +71,7 @@ TEST(StreamTest, TPCStreamBasic) {
   for (int i = 3; i < 25; i++) {
     ASSERT_TRUE(stream.Available());
     stream >> tuple;
-    ASSERT_EQ(stream::GetTimestamp(tuple), i);
+    ASSERT_EQ(tuple.timestamp_, i);
     // ASSERT_EQ(stream::get_key(tuple), i);
   }
 

@@ -54,7 +54,7 @@ auto stream::ListIndex<KeyType, ValueType>::RangeSearch(
     -> std::vector<TupleType<KeyType, ValueType>> {
   std::vector<TupleType<KeyType, ValueType>> result;
   for (const auto &tuple : index_) {
-    const KeyType &key = GetKey<KeyType, ValueType>(tuple);
+    auto &key = tuple.key_;
     if (key >= key_range.first && key <= key_range.second) {
       result.push_back(tuple);
     }
