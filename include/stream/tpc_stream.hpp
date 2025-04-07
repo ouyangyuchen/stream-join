@@ -7,7 +7,7 @@
 #include <sstream>
 #include <string>
 #include "stream.hpp"
-#include "utils.hpp"
+#include "types/types.hpp"
 
 namespace stream {
 // TPCStream reads tuples from a TPC-H dataset file. The keys should be comparable.

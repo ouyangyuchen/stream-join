@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
-#include "index_list.hpp"
-#include "utils.hpp"
+#include "index/list.hpp"
+#include "types/types.hpp"
 
 using stream::TupleType;
 

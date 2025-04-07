@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include "random_stream.hpp"
-#include "tpc_stream.hpp"
-#include "utils.hpp"
+#include "stream/random_stream.hpp"
+#include "stream/tpc_stream.hpp"
+#include "types/types.hpp"
 
 TEST(StreamTest, RandomStreamBasic) {
   stream::RandomStream stream(100, {0, 10});

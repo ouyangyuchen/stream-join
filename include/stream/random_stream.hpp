@@ -2,8 +2,8 @@
 #define RANDOM_STREAM_HPP_
 
 #include <random>
-#include "stream.hpp"
-#include "utils.hpp"
+#include "stream/stream.hpp"
+#include "types/types.hpp"
 
 namespace stream {
 

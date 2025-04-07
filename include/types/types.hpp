@@ -1,5 +1,5 @@
-#ifndef UTILS_HPP
-#define UTILS_HPP
+#ifndef STREAMJOIN_TYPES_HPP
+#define STREAMJOIN_TYPES_HPP
 
 #include <cstdint>
 

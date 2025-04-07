@@ -4,11 +4,11 @@
 #include <thread>
 #include <utility>
 
-#include "index_list.hpp"
-#include "random_stream.hpp"
-#include "tpc_stream.hpp"
-#include "utils.hpp"
-#include "window.hpp"
+#include "index/list.hpp"
+#include "join/window.hpp"
+#include "stream/random_stream.hpp"
+#include "stream/tpc_stream.hpp"
+#include "types/types.hpp"
 
 using stream::TsType;
 using stream::TupleType;

@@ -2,7 +2,7 @@
 #define INDEX_LIST_HPP_
 
 #include <deque>
-#include "index.hpp"
+#include "index/index.hpp"
 
 namespace stream {
 

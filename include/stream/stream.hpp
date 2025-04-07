@@ -1,7 +1,7 @@
 #ifndef STREAM_HPP_
 #define STREAM_HPP_
 
-#include "utils.hpp"
+#include "types/types.hpp"
 
 namespace stream {
 

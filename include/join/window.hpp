@@ -8,10 +8,10 @@
 #include <thread>
 #include <type_traits>
 #include <vector>
-#include "index.hpp"
+#include "index/index.hpp"
 #include "msd/channel.hpp"
-#include "stream.hpp"
-#include "utils.hpp"
+#include "stream/stream.hpp"
+#include "types/types.hpp"
 
 namespace stream {
 
