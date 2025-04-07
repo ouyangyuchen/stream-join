@@ -23,12 +23,19 @@ struct SubWindow {
  public:
   using ChannelPointer = std::shared_ptr<msd::channel<TupleType<KeyType, ValueType>>>;
 
-  SubWindow(size_t window_size, ChannelPointer input_prev, ChannelPointer input_next,
-            ChannelPointer output_prev, ChannelPointer output_next, int32_t id = -1,
-            std::ostream &os = std::cout)
+  /**
+   * @brief SubWindow constructor.
+   * @param window_size size of the sub-window
+   * @param input_chan channel to receive events
+   * @param output_prev channel to send events to the previous sub-window
+   * @param output_next channel to send events to the next sub-window
+   * @param id id of the sub-window
+   * @param os output stream for debug
+   */
+  SubWindow(size_t window_size, ChannelPointer input_chan, ChannelPointer output_prev,
+            ChannelPointer output_next, int32_t id = -1, std::ostream &os = std::cout)
       : window_size_(window_size),
-        input_prev_(input_prev),
-        input_next_(input_next),
+        input_chan_(input_chan),
         output_prev_(output_prev),
         output_next_(output_next),
         id_(id),
@@ -55,10 +62,8 @@ struct SubWindow {
   Container index_{};  // stored tuples
 
   // transfer tuples between neighbor sub-windows/threads
-  // input_prev ---> current sub-window ---> output_next
-  // output_prev <--- current sub-window <--- input_next
-  ChannelPointer input_prev_;   // not null
-  ChannelPointer input_next_;   // null if this is the tail sub-window
+  // input channel contains all events that sub-window routine should process sequentially
+  ChannelPointer input_chan_;   // not null
   ChannelPointer output_prev_;  // null if this is the head sub-window
   ChannelPointer output_next_;  // could be null
 
@@ -128,27 +133,19 @@ stream::SlidingWindow<KeyType, ValueType, Container, StreamType>::SlidingWindow(
       stream_(stream) {
   assert(num_workers_ > 0);
   assert(window_size % num_workers_ == 0);
-  // create next and previous channels
-  std::vector<ChannelPointer> next_chans(num_workers_);
-  std::vector<ChannelPointer> prev_chans(num_workers_ - 1);
+
+  std::vector<ChannelPointer> input_channels(num_workers_);
   for (size_t i = 0; i < num_workers_; ++i) {
-    next_chans[i] =
-        std::make_shared<msd::channel<TupleType<KeyType, ValueType>>>(channel_buffer_size);
-  }
-  for (size_t i = 0; i < num_workers_ - 1; ++i) {
-    prev_chans[i] =
+    input_channels[i] =
         std::make_shared<msd::channel<TupleType<KeyType, ValueType>>>(channel_buffer_size);
   }
 
   // create subwindows with connected channels
   size_t subwindow_size = window_size_ / num_workers_;
   for (size_t i = 0; i < num_workers_; ++i) {
-    auto left_input = next_chans[i];
-    auto left_output = (i == 0) ? nullptr : prev_chans[i - 1];
-    auto right_input = (i == num_workers_ - 1) ? nullptr : prev_chans[i];
-    auto right_output = (i == num_workers_ - 1) ? endpoint : next_chans[i + 1];
-
-    subwindows_.emplace_back(subwindow_size, left_input, right_input, left_output, right_output, i);
+    auto left_output = (i == 0) ? nullptr : input_channels[i - 1];
+    auto right_output = (i == num_workers_ - 1) ? endpoint : input_channels[i + 1];
+    subwindows_.emplace_back(subwindow_size, input_channels[i], left_output, right_output, i);
   }
 
   // create threads for each subwindow to flow tuples
@@ -180,14 +177,14 @@ auto stream::SlidingWindow<KeyType, ValueType, Container, StreamType>::Start() -
   while (!stream_.Eof()) {
     TupleType<KeyType, ValueType> tuple;
     stream_ >> tuple;
-    *(subwindows_[0].input_prev_) << tuple;  // push the tuple to the first subwindow
+    *(subwindows_[0].input_chan_) << tuple;  // push the tuple to the first subwindow
   }
-  subwindows_[0].input_prev_->close();  // start chained closing
+  subwindows_[0].input_chan_->close();  // start chained closing
 }
 
 template <typename KeyType, typename ValueType, typename Container>
 auto stream::SubWindow<KeyType, ValueType, Container>::FlowThrough() -> void {
-  for (auto &tuple : *input_prev_) {
+  for (auto &tuple : *input_chan_) {
     index_.Insert(tuple);
 
     if (index_.Size() > window_size_) {

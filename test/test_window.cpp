@@ -20,7 +20,7 @@ TEST(WindowTest, SubWindowFlowThrough) {
 
   // Create a subwindow with no buffer, which acts as a pipe
   stream::SubWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> subwindow(
-      0, input_chan, nullptr, nullptr, output_chan);
+      0, input_chan, nullptr, output_chan);
 
   // Start the flow through the subwindow in a separate thread
   std::thread flow_thread([&subwindow]() { subwindow.FlowThrough(); });
