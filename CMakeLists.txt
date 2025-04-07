@@ -14,6 +14,18 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
+# Option to enable ASan (default: OFF)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+if(ENABLE_ASAN)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        message(STATUS "AddressSanitizer enabled")
+        add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address)
+    else()
+        message(WARNING "AddressSanitizer not supported for this compiler")
+    endif()
+endif()
+
 # optimize level
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
