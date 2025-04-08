@@ -21,8 +21,6 @@ struct SubWindow {
                 "Container must be derived from Index<KeyType, ValueType>");
 
  public:
-  using ChannelPointer = std::shared_ptr<msd::channel<TupleType<KeyType, ValueType>>>;
-
   /**
    * @brief SubWindow constructor.
    * @param window_size size of the sub-window
@@ -32,14 +30,21 @@ struct SubWindow {
    * @param id id of the sub-window
    * @param os output stream for debug
    */
-  SubWindow(size_t window_size, ChannelPointer input_chan, ChannelPointer output_prev,
-            ChannelPointer output_next, int32_t id = -1, std::ostream &os = std::cout)
+  SubWindow(size_t window_size, ChannelPointer<KeyType, ValueType> input_chan,
+            ChannelPointer<KeyType, ValueType> output_prev,
+            ChannelPointer<KeyType, ValueType> output_next, int32_t id = -1,
+            std::ostream &os = std::cout)
       : window_size_(window_size),
         input_chan_(input_chan),
         output_prev_(output_prev),
         output_next_(output_next),
         id_(id),
-        os_(os) {}
+        os_(os),
+        index_(std::make_unique<Container>()) {
+    assert(input_chan_ != nullptr);
+    assert(input_chan_ != output_prev_);
+    assert(input_chan_ != output_next_);
+  }
 
   ~SubWindow() = default;
 
@@ -59,13 +64,13 @@ struct SubWindow {
 
   const size_t window_size_;  // fixed number of tuples stored in the sub-window
 
-  Container index_{};  // stored tuples
+  std::unique_ptr<WindowIndex<KeyType, ValueType>> index_{};  // stored tuples
 
   // transfer tuples between neighbor sub-windows/threads
   // input channel contains all events that sub-window routine should process sequentially
-  ChannelPointer input_chan_;   // not null
-  ChannelPointer output_prev_;  // null if this is the head sub-window
-  ChannelPointer output_next_;  // could be null
+  ChannelPointer<KeyType, ValueType> input_chan_;   // not null
+  ChannelPointer<KeyType, ValueType> output_prev_;  // null if this is the head sub-window
+  ChannelPointer<KeyType, ValueType> output_next_;  // could be null
 
   std::ostream &os_;  // output join results
 
@@ -185,10 +190,10 @@ auto stream::SlidingWindow<KeyType, ValueType, Container, StreamType>::Start() -
 template <typename KeyType, typename ValueType, typename Container>
 auto stream::SubWindow<KeyType, ValueType, Container>::FlowThrough() -> void {
   for (auto &tuple : *input_chan_) {
-    index_.Insert(tuple);
+    index_->Insert(tuple);
 
-    if (index_.Size() > window_size_) {
-      auto tuple_expired = index_.PopOldest();
+    if (index_->Size() > window_size_) {
+      auto tuple_expired = index_->PopOldest();
       if (output_next_) {
         *output_next_ << tuple_expired;
       }

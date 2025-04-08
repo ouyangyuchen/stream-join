@@ -5,7 +5,9 @@
 #include <utility>
 
 #include "index/list.hpp"
+#include "join/broadcast_window.hpp"
 #include "join/window.hpp"
+#include "msd/channel.hpp"
 #include "stream/random_stream.hpp"
 #include "stream/tpc_stream.hpp"
 #include "types/types.hpp"
@@ -133,5 +135,31 @@ TEST(WindowTest, WindowFlowFileStream) {
 
   if (watcher_thread.joinable()) {
     watcher_thread.join();
+  }
+}
+
+TEST(WindowTest, BroadcastWindowBasic) {
+  auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(10);
+  stream::BroadcastWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
+      1, 10, input_chan, 0, std::cout);
+
+  // push [1, 100] as r tuples into the input channel
+  // push [1, 100] as s tuples into the input channel
+  auto producer = [&input_chan]() {
+    for (int i = 0; i < 10; ++i) {
+      stream::TupleType<int64_t, int64_t> tuple{i, i + 1, i * 10, stream::TupleFlag::INPUT_R};
+      (*input_chan) << tuple;
+      tuple.ctl_ = stream::TupleFlag::INPUT_S;
+      (*input_chan) << tuple;
+    }
+    input_chan->close();
+  };
+  std::thread producer_thread(producer);
+
+  // start the window
+  window.Start();
+  // wait for the producer thread to finish
+  if (producer_thread.joinable()) {
+    producer_thread.join();
   }
 }

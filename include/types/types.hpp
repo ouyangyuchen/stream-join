@@ -2,8 +2,12 @@
 #define STREAMJOIN_TYPES_HPP
 
 #include <cstdint>
+#include <ostream>
+#include "msd/channel.hpp"
 
 namespace stream {
+
+// Tuple type for the stream join
 using TsType = int64_t;  // timestamp type
 
 enum class TupleFlag {
@@ -20,6 +24,32 @@ struct TupleType {
   TupleFlag ctl_ = TupleFlag::INPUT_R;  // control/metainfo of this tuple
 };
 
-};  // namespace stream
+template <typename KeyType, typename ValueType>
+auto operator<<(std::ostream &os, const TupleType<KeyType, ValueType> &tuple) -> std::ostream & {
+  std::string ctl_str;
+  switch (tuple.ctl_) {
+    case TupleFlag::INPUT_R:
+      ctl_str = "R";
+      break;
+    case TupleFlag::INPUT_S:
+      ctl_str = "S";
+      break;
+    default:
+      ctl_str = "UNKNOWN";
+  }
+
+  os << "(ts = " << tuple.timestamp_ << ", key = " << tuple.key_ << ", value = " << tuple.value_
+     << ", " << ctl_str << ")";
+  return os;
+}
+
+// Channel
+template <typename KeyType, typename ValueType>
+using Channel = msd::channel<TupleType<KeyType, ValueType>>;
+
+template <typename KeyType, typename ValueType>
+using ChannelPointer = std::shared_ptr<Channel<KeyType, ValueType>>;
+
+}  // namespace stream
 
 #endif

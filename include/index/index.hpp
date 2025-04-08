@@ -27,6 +27,13 @@ class WindowIndex {
   virtual auto PopOldest() -> TupleType<KeyType, ValueType> = 0;
 
   /**
+   * @brief Get the tuple with the oldest timestamp without removing it from the index.
+   *
+   * @throw std::out_of_range if the index is empty.
+   */
+  virtual auto GetOldest() const -> TupleType<KeyType, ValueType> = 0;
+
+  /**
    * @brief Search all tuples within the given key range.
    *
    * @param key_range The range of keys to search.
