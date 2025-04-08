@@ -24,19 +24,26 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   /**
    * @brief Constructor of BroadcastWindow.
    * @param diff join condition: |r.key - s.key| <= diff
-   * @param window_size size of the sliding window
+   * @param window_len_S size of the sub window size of S stream
+   * @param window_len_R size of the total window size of R stream
    * @param input_chan input channel for the tuples/events
    * @param id id of the window (debugging purpose)
    * @param os output stream for logging/debugging
    */
-  BroadcastWindow(KeyType diff, size_t window_size, ChannelPointer input_chan, int32_t id = -1,
-                  std::ostream &os = std::cout)
-      : SubWindow<KeyType, ValueType, Container>(window_size, input_chan, nullptr, nullptr, id, os),
+  BroadcastWindow(KeyType diff, size_t window_len_S, size_t window_len_R, ChannelPointer input_chan,
+                  int32_t id = -1, std::ostream &os = std::cout)
+      : SubWindow<KeyType, ValueType, Container>(window_len_S, input_chan, nullptr, nullptr, id,
+                                                 os),
+        window_size_s_(window_len_S),
+        window_size_r_(window_len_R),
         diff_(diff),
         index_s_(std::move(SubWindow<KeyType, ValueType, Container>::index_)),
         index_r_(std::make_unique<Container>()) {
     if (diff < 0) {
       throw std::invalid_argument("diff must be greater than 0");
+    }
+    if (window_size_s_ == 0 or window_size_r_ == 0) {
+      throw std::invalid_argument("window size must be greater than 0");
     }
   }
 
@@ -76,7 +83,7 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   auto ProcessR(TupleType<KeyType, ValueType> tuple) -> size_t {
     // delete expired tuples in the opposite stream index I_s
     TsType ts = tuple.timestamp_;
-    TsType ts_lower_bound = ts - this->window_size_;
+    TsType ts_lower_bound = ts - window_size_s_;
     while (!index_s_->Empty() && index_s_->GetOldest().timestamp_ < ts_lower_bound) {
       index_s_->PopOldest();
     }
@@ -88,6 +95,7 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
     }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_R
+    ts_lower_bound = ts - window_size_r_;
     while (!index_r_->Empty() && index_r_->GetOldest().timestamp_ < ts_lower_bound) {
       index_r_->PopOldest();
     }
@@ -99,7 +107,7 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   auto ProcessS(TupleType<KeyType, ValueType> tuple) -> size_t {
     // delete expired tuples in the opposite stream index I_R
     TsType ts = tuple.timestamp_;
-    TsType ts_lower_bound = ts - this->window_size_;
+    TsType ts_lower_bound = ts - window_size_r_;
     while (!index_r_->Empty() && index_r_->GetOldest().timestamp_ < ts_lower_bound) {
       index_r_->PopOldest();
     }
@@ -111,6 +119,7 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
     }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_s
+    ts_lower_bound = ts - window_size_s_;
     while (!index_s_->Empty() && index_s_->GetOldest().timestamp_ < ts_lower_bound) {
       index_s_->PopOldest();
     }
@@ -134,7 +143,9 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   }
 
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
+  size_t window_size_r_;
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
+  size_t window_size_s_;
 
   bool is_running_ = false;  // flag to indicate if the window is running
   std::thread thread_;       // working thread for the broadcast window

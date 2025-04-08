@@ -141,7 +141,7 @@ TEST(WindowTest, WindowFlowFileStream) {
 TEST(WindowTest, BroadcastWindowBasic) {
   auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(10);
   stream::BroadcastWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
-      1, 10, input_chan, 0, std::cout);
+      2, 2, 10, input_chan, 0, std::cout);
 
   // push [1, 100] as r tuples into the input channel
   // push [1, 100] as s tuples into the input channel
