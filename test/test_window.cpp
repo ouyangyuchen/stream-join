@@ -140,8 +140,9 @@ TEST(WindowTest, WindowFlowFileStream) {
 
 TEST(WindowTest, BroadcastWindowBasic) {
   auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(10);
+  int64_t diff = 2;
   stream::BroadcastWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
-      2, 2, 10, input_chan, 0, std::cout);
+      2, 10, input_chan, 0, std::cout);
 
   // push [1, 100] as r tuples into the input channel
   // push [1, 100] as s tuples into the input channel
@@ -157,7 +158,7 @@ TEST(WindowTest, BroadcastWindowBasic) {
   std::thread producer_thread(producer);
 
   // start the window
-  window.Start();
+  window.Start(diff);
   // wait for the producer thread to finish
   if (producer_thread.joinable()) {
     producer_thread.join();
