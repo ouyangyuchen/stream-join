@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
+#include <cstddef>
+#include <optional>
 #include "stream/random_stream.hpp"
+#include "stream/sequential_stream.hpp"
 #include "stream/tpc_stream.hpp"
 #include "types/types.hpp"
 
@@ -77,4 +80,79 @@ TEST(StreamTest, TPCStreamBasic) {
 
   ASSERT_FALSE(stream.Available());
   ASSERT_TRUE(stream.Eof());
+}
+
+TEST(StreamTest, TupleReader2Streams) {
+  size_t num_r_tuples = 10;
+  size_t num_s_tuples = 20;
+  auto r_stream = std::make_unique<stream::SequentialStream>(0, num_r_tuples);
+  auto s_stream = std::make_unique<stream::SequentialStream>(0, num_s_tuples);
+
+  stream::TupleReader<int64_t, int64_t> tuple_reader(std::move(r_stream), std::move(s_stream));
+  stream::TsType ts = 0;
+  size_t cnt = 0;
+
+  std::optional<stream::TupleType<int64_t, int64_t>> tuple_opt;
+  while ((tuple_opt = tuple_reader.GetNextTuple()).has_value()) {
+    ASSERT_GE(tuple_opt->timestamp_, ts);
+    ts = tuple_opt->timestamp_;
+    cnt++;
+  }
+  ASSERT_EQ(num_r_tuples + num_s_tuples, cnt);
+
+  int64_t r_step = 1;
+  int64_t s_step = 5;
+  int64_t r_end = 10;
+  int64_t s_end = 20;
+  num_r_tuples = r_end / r_step;
+  num_s_tuples = s_end / s_step;
+
+  r_stream = std::make_unique<stream::SequentialStream>(0, r_end, r_step);
+  s_stream = std::make_unique<stream::SequentialStream>(
+      0, s_end, s_step);  // the generation rate of S is less than R
+  auto tuple_reader2 =
+      stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
+  ts = 0;
+  cnt = 0;
+  while ((tuple_opt = tuple_reader2.GetNextTuple()).has_value()) {
+    ASSERT_GE(tuple_opt->timestamp_, ts);
+    ts = tuple_opt->timestamp_;
+    cnt++;
+  }
+  ASSERT_EQ(num_r_tuples + num_s_tuples, cnt);
+}
+
+TEST(StreamTest, TupleReaderSingleStream) {
+  // Test with only R stream
+  size_t num_tuples = 10;
+  std::unique_ptr<stream::SequentialStream> r_stream =
+      std::make_unique<stream::SequentialStream>(0, num_tuples);
+  std::unique_ptr<stream::SequentialStream> s_stream = nullptr;
+
+  stream::TupleReader<int64_t, int64_t> tuple_reader(std::move(r_stream), std::move(s_stream));
+  stream::TsType ts = 0;
+  size_t cnt = 0;
+
+  std::optional<stream::TupleType<int64_t, int64_t>> tuple_opt;
+  while ((tuple_opt = tuple_reader.GetNextTuple()).has_value()) {
+    ASSERT_GE(tuple_opt->timestamp_, ts);
+    ts = tuple_opt->timestamp_;
+    cnt++;
+  }
+  ASSERT_EQ(num_tuples, cnt);
+
+  // Test with only S stream
+  num_tuples = 20;
+  r_stream = nullptr;
+  s_stream = std::make_unique<stream::SequentialStream>(0, num_tuples);
+  auto tuple_reader2 =
+      stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
+  ts = 0;
+  cnt = 0;
+  while ((tuple_opt = tuple_reader2.GetNextTuple()).has_value()) {
+    ASSERT_GE(tuple_opt->timestamp_, ts);
+    ts = tuple_opt->timestamp_;
+    cnt++;
+  }
+  ASSERT_EQ(num_tuples, cnt);
 }
