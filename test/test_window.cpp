@@ -181,7 +181,7 @@ TEST(WindowTest, BroadcastJoinerBasic) {
   // -> the sum of all join results should be equal to the result of the BroadcastWindowBasic
 
   size_t num_workers = 5;
-  size_t window_len = 10;
+  size_t window_len = 50;
   size_t channel_buffer_size = 10;
   int64_t diff = 5;
   size_t tuples_r = 10000;
