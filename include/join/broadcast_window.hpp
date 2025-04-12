@@ -4,10 +4,10 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <thread>
 #include <utility>
 #include <vector>
 #include "index/index.hpp"
-#include "join/window.hpp"
 #include "stream/stream.hpp"
 #include "types/types.hpp"
 
@@ -21,7 +21,7 @@ namespace stream {
  * update the total index I_r; tuple s is processed oppositely to r.
  */
 template <typename KeyType, typename ValueType, typename Container>
-class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
+class BroadcastWindow {
  public:
   /**
    * @brief Constructor of BroadcastWindow.
@@ -35,11 +35,12 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   BroadcastWindow(size_t window_len_S, size_t window_len_R,
                   ChannelPointer<KeyType, ValueType> input_chan, int32_t id = -1,
                   std::ostream &os = std::cout)
-      : SubWindow<KeyType, ValueType, Container>(window_len_S, input_chan, nullptr, nullptr, id,
-                                                 os),
-        window_size_s_(window_len_S),
+      : window_size_s_(window_len_S),
         window_size_r_(window_len_R),
-        index_s_(std::move(SubWindow<KeyType, ValueType, Container>::index_)),
+        input_chan_(input_chan),
+        id_(id),
+        os_(os),
+        index_s_(std::make_unique<Container>()),
         index_r_(std::make_unique<Container>()) {
     if (window_size_s_ == 0 or window_size_r_ == 0) {
       throw std::invalid_argument("window size must be greater than 0");
@@ -151,8 +152,15 @@ class BroadcastWindow : public SubWindow<KeyType, ValueType, Container> {
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
   size_t window_size_s_;
 
+  ChannelPointer<KeyType, ValueType> input_chan_;  // input channel for the tuples/events
+
   bool is_running_ = false;  // flag to indicate if the window is running
   std::thread thread_;       // working thread for the broadcast window
+
+  std::ostream &os_;  // output stream for logging/debugging
+
+  // debug:
+  int32_t id_;
 };
 
 /**
