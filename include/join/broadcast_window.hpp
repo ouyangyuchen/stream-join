@@ -15,7 +15,7 @@ namespace stream {
 
 /**
  * @brief BroadcastWindow class.
- * @details The BroadcastWindow class is a SubWindow class used in the broadcast join that
+ * @details The BroadcastWindow class is used in the broadcast join that
  * maintains a total index of one stream (R), and a sub-index of another stream (S).
  * Every time a new tuple r is received, it searches in the local sub-index I_s[i] and
  * update the total index I_r; tuple s is processed oppositely to r.
