@@ -1,6 +1,7 @@
 #ifndef JOIN_BROADCAST_WINDOW_HPP
 #define JOIN_BROADCAST_WINDOW_HPP
 
+#include <spdlog/spdlog.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -96,7 +97,7 @@ class BroadcastWindow {
     std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
     auto results = index_s_->RangeSearch(key_range);
     for (const auto &result : results) {
-      //   this->os_ << tuple << " | " << result << "\n";
+      spdlog::debug("{} | {}", result, tuple);
     }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_R
@@ -120,7 +121,7 @@ class BroadcastWindow {
     std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
     auto results = index_r_->RangeSearch(key_range);
     for (const auto &result : results) {
-      //   this->os_ << tuple << " | " << result << "\n";
+      spdlog::debug("{} | {}", result, tuple);
     }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_s
@@ -144,7 +145,7 @@ class BroadcastWindow {
         throw std::runtime_error("Invalid tuple control flag");
       }
     }
-    std::cout << "Total join count: " << join_count << "\n";
+    spdlog::info("Window {}: total join count: {}", id_, join_count);
   }
 
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
@@ -184,21 +185,16 @@ class BroadcastJoiner {
       : num_workers_(num_workers),
         channels_(num_workers),
         window_size_(window_size),
-        sub_window_size_(window_size / num_workers),
         channel_buffer_size_(channel_buffer_size),
         tuple_reader_(std::move(R), std::move(S)) {
     if (num_workers_ == 0) {
       throw std::invalid_argument("num_workers must be greater than 0");
     }
-    if (window_size_ % num_workers_ != 0) {
-      throw std::invalid_argument(
-          "currently window_size must be divisible by num_workers (maybe relax later)");
-    }
 
     // create N subwindows, each with a input event channel
     for (size_t i = 0; i < num_workers_; ++i) {
       channels_[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
-      subwindows_.emplace_back(sub_window_size_, window_size_, channels_[i], i, os);
+      subwindows_.emplace_back(window_size_, window_size_, channels_[i], i, os);
     }
   }
 
@@ -245,8 +241,6 @@ class BroadcastJoiner {
     while ((tuple_opt = tuple_reader_.GetNextTuple()).has_value()) {
       TupleType<KeyType, ValueType> tuple = tuple_opt.value();
 
-      //   std::cerr << "Producer: " << tuple << "\n";
-
       if (tuple.ctl_ == TupleFlag::INPUT_R) {
         for (size_t i = 0; i < num_workers_; ++i) {
           (*channels_[i]) << tuple;
@@ -274,8 +268,7 @@ class BroadcastJoiner {
   }
 
   const size_t num_workers_{};          // number of consumer threads == number of subwindows
-  const size_t window_size_{};          // total number of tuples in the all subwindows
-  const size_t sub_window_size_{};      // number of tuples in each subwindow
+  const size_t window_size_{};          // window limit for timestamp matching
   const size_t channel_buffer_size_{};  // size of the channel buffer
 
   TupleReader<KeyType, ValueType> tuple_reader_;  // tuple reader for the input streams (R and S)

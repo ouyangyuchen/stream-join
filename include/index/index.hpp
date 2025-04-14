@@ -33,6 +33,8 @@ class WindowIndex {
    */
   virtual auto GetOldest() const -> TupleType<KeyType, ValueType> = 0;
 
+  virtual auto GetOldestRef() -> TupleType<KeyType, ValueType> & = 0;
+
   /**
    * @brief Search all tuples within the given key range.
    *

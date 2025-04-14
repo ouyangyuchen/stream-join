@@ -19,6 +19,8 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
   auto GetOldest() const -> TupleType<KeyType, ValueType> override;
 
+  auto GetOldestRef() -> TupleType<KeyType, ValueType> & override;
+
   auto RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
       -> std::vector<TupleType<KeyType, ValueType>> override;
 
@@ -52,6 +54,14 @@ auto stream::ListIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, Va
 
 template <typename KeyType, typename ValueType>
 auto stream::ListIndex<KeyType, ValueType>::GetOldest() const -> TupleType<KeyType, ValueType> {
+  if (index_.empty()) {
+    throw std::out_of_range("Index is empty");
+  }
+  return index_.front();
+}
+
+template <typename KeyType, typename ValueType>
+auto stream::ListIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType, ValueType> & {
   if (index_.empty()) {
     throw std::out_of_range("Index is empty");
   }
