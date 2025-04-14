@@ -54,6 +54,7 @@ install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 # Find Google Test
 find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
+find_package(spdlog REQUIRED)
 
 # Add test executable
 add_executable(unit_test
@@ -68,6 +69,7 @@ target_link_libraries(unit_test
     GTest::GTest
     GTest::Main
     Threads::Threads
+    spdlog::spdlog
 )
 include_directories(${GTEST_INCLUDE_DIRS})
 
