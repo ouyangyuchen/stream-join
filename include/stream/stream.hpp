@@ -51,7 +51,8 @@ class TupleReader {
       return result;
     };
 
-    while (r_stream_ && !r_stream_->Eof() || s_stream_ && !s_stream_->Eof()) {
+    while (r_stream_ && (!r_stream_->Eof() || r_tuple_) ||
+           s_stream_ && (!s_stream_->Eof() || s_tuple_)) {
       ReadFrom(r_stream_, r_tuple_);
       ReadFrom(s_stream_, s_tuple_);
 
