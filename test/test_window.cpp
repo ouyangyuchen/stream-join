@@ -17,16 +17,16 @@ using stream::TsType;
 using stream::TupleType;
 
 struct TestConfig {
-  static constexpr size_t WINDOW_SIZE = 50;
+  static constexpr size_t WINDOW_SIZE = 36;
   static constexpr int64_t DIFF = 36;
   static constexpr size_t TUPLES_R = 2000;
-  static constexpr size_t TUPLES_S = 2000;
+  static constexpr size_t TUPLES_S = 2010;
 
   static constexpr size_t BROADCAST_CHANNEL_BUFFER_SIZE = 10;
   static constexpr size_t BROADCAST_WORKERS = 8;
 
   static constexpr size_t HANDSHAKE_CHANNEL_BUFFER_SIZE = 64;
-  static constexpr size_t HANDSHAKE_WORKERS = 2;
+  static constexpr size_t HANDSHAKE_WORKERS = 6;
 
   // broadcast window
   static constexpr size_t SUB_WINDOW_SIZE = 2;

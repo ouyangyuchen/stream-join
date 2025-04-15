@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <iostream>
 #include <ostream>
@@ -59,21 +60,43 @@ class HandshakeWindow {
    * forward threshold.
    */
   void Start(KeyType diff) {
-    size_t join_count = 0;
-    for (auto tuple : *input_chan_) {
-      if (tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S) {
-        join_count += ProcessLeft(tuple, diff);
-      } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
-        join_count += ProcessRight(tuple, diff);
-      } else {
-        throw std::runtime_error("Invalid tuple control flag");
+    // process the input tuples as the paper Figure 9
+    auto process_func = [this, diff]() {
+      size_t join_count = 0;
+      for (auto tuple : *input_chan_) {
+        closed_guessed_ = false;  // restart the timer
+        if (tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S) {
+          join_count += ProcessLeft(tuple, diff);
+        } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
+          join_count += ProcessRight(tuple, diff);
+        } else {
+          throw std::runtime_error("Invalid tuple control flag");
+        }
+        ForwardTuples();
       }
-      ForwardTuples();
-    }
-    spdlog::info("Window {} join count: {}", id_, join_count);
+      spdlog::info("Window {} join count: {}", id_, join_count);
+    };
+
+    std::thread process_thread(process_func);
+    std::thread check_thread(&HandshakeWindow::CheckClosed, this);
+    check_thread.join();  // check thread finishes, terminate the while loop in process thread
+    input_chan_->close();
+    process_thread.join();
   }
 
  private:
+  /**
+   * @brief Check if the input channel is empty for a while.
+   * @details If the function returns, the input channel is empty for a while, which is assumed
+   * that the window should stop listenning the input.
+   */
+  void CheckClosed() {
+    while (!closed_guessed_) {
+      closed_guessed_ = true;
+      std::this_thread::sleep_for(check_flag_interval_);
+    }
+  }
+
   /**
    * @brief Check if the timestamps of two tuples satisfy the window limit.
    */
@@ -180,6 +203,9 @@ class HandshakeWindow {
   std::ostream &os_;  // output stream for join results
 
   int32_t id_;  // id of the window (debugging purpose)
+
+  bool closed_guessed_{false};  // flag to indicate if the window should be closed
+  const std::chrono::milliseconds check_flag_interval_{2000};
 };
 
 template <typename KeyType, typename ValueType, typename Container>
@@ -216,7 +242,8 @@ class HandshakeJoiner {
     for (size_t i = 0; i < num_workers_; ++i) {
       auto left_output_chan = (i == 0) ? nullptr : input_channels[i - 1];
       auto right_output_chan = (i == num_workers_ - 1) ? nullptr : input_channels[i + 1];
-      auto forward_threshold = window_len / num_workers + 1;  // +1 to guarantee the completeness
+      auto forward_threshold =
+          window_len / num_workers + 1;  // +1 to guarantee the completeness of join results
       windows_.emplace_back(window_len_, forward_threshold, input_channels[i], left_output_chan,
                             right_output_chan, i, os);
     }
@@ -256,10 +283,8 @@ class HandshakeJoiner {
       }
     }
 
-    // close the input channels
-    std::this_thread::sleep_for(wait_after_close_);  // wait for the workers to empty the channels
-    input_left_chan_->close();
-    input_right_chan_->close();
+    // workers will automatically close the input channels if they fail to receive tuples
+    // for a while
   }
 
  private:
