@@ -50,6 +50,14 @@ class HandshakeWindow {
     }
   }
 
+  /**
+   * @brief Read tuples from the input channel and process them.
+   * @param diff join condition: |r.key - s.key| <= diff
+   * @details The function reads tuples from the input channel and processes them based on their
+   * attributes, updating the indexes and sending results to the output channels as necessary.
+   * It also handles the forwarding of tuples to the left and right channels based on the
+   * forward threshold.
+   */
   void Start(KeyType diff) {
     size_t join_count = 0;
     for (auto tuple : *input_chan_) {
@@ -66,6 +74,9 @@ class HandshakeWindow {
   }
 
  private:
+  /**
+   * @brief Check if the timestamps of two tuples satisfy the window limit.
+   */
   inline auto TimeStampMatched(const TupleType<KeyType, ValueType> &r,
                                const TupleType<KeyType, ValueType> &s) -> bool {
     if (r.timestamp_ > s.timestamp_) {
@@ -91,7 +102,7 @@ class HandshakeWindow {
       auto tuple_s = index_s_->PopOldest();
       assert(tuple_s.forwarded_);
       assert(tuple_s.ctl_ == TupleFlag::INPUT_S);
-      spdlog::debug("Window {} deletes: {}", id_, tuple_s);
+      // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
       return 0;
     }
     throw std::runtime_error("Invalid tuple control flag");
@@ -123,13 +134,14 @@ class HandshakeWindow {
       if (!tuple.forwarded_) {
         SendToLeft(tuple);
         tuple.forwarded_ = true;
+        // spdlog::debug("Window {} forward: {}", id_, tuple);
       }
     }
     if (index_r_->Size() > forward_threshold_) {
       auto tuple = index_r_->PopOldest();
       assert(tuple.ctl_ == TupleFlag::INPUT_R);
-      spdlog::debug("Window {} deletes: {}", id_, tuple);
       SendToRight(tuple);
+      // spdlog::debug("Window {} forward: {}", id_, tuple);
     }
   }
 
@@ -163,7 +175,7 @@ class HandshakeWindow {
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
   const size_t window_size_s_;
 
-  const size_t forward_threshold_ = 0;  // threshold for forwarding tuples
+  const size_t forward_threshold_;  // threshold for forwarding tuples
 
   std::ostream &os_;  // output stream for join results
 
@@ -204,8 +216,9 @@ class HandshakeJoiner {
     for (size_t i = 0; i < num_workers_; ++i) {
       auto left_output_chan = (i == 0) ? nullptr : input_channels[i - 1];
       auto right_output_chan = (i == num_workers_ - 1) ? nullptr : input_channels[i + 1];
-      windows_.emplace_back(window_len_, window_len / num_workers, input_channels[i],
-                            left_output_chan, right_output_chan, i, os);
+      auto forward_threshold = window_len / num_workers + 1;  // +1 to guarantee the completeness
+      windows_.emplace_back(window_len_, forward_threshold, input_channels[i], left_output_chan,
+                            right_output_chan, i, os);
     }
   }
 
@@ -244,8 +257,7 @@ class HandshakeJoiner {
     }
 
     // close the input channels
-    std::this_thread::sleep_for(
-        std::chrono::seconds(1));  // wait for the workers to empty the input channels
+    std::this_thread::sleep_for(wait_after_close_);  // wait for the workers to empty the channels
     input_left_chan_->close();
     input_right_chan_->close();
   }
@@ -265,6 +277,8 @@ class HandshakeJoiner {
       input_right_chan_;  // send s tuples to the right most sub-window
 
   std::ostream &os_;  // output stream for join results
+
+  const std::chrono::milliseconds wait_after_close_{1000};
 };
 
 }  // namespace stream

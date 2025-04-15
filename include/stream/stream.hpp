@@ -1,8 +1,11 @@
 #ifndef STREAM_HPP_
 #define STREAM_HPP_
 
+#include <spdlog/spdlog.h>
+#include <chrono>
 #include <memory>
 #include <optional>
+#include <thread>
 #include "types/types.hpp"
 
 namespace stream {
@@ -26,10 +29,16 @@ template <typename KeyType, typename ValueType>
 class TupleReader {
  public:
   TupleReader(std::unique_ptr<Stream<KeyType, ValueType>> r_stream,
-              std::unique_ptr<Stream<KeyType, ValueType>> s_stream)
-      : r_stream_(std::move(r_stream)), s_stream_(std::move(s_stream)) {
+              std::unique_ptr<Stream<KeyType, ValueType>> s_stream,
+              std::chrono::duration<double> read_interval = std::chrono::milliseconds(1))
+      : r_stream_(std::move(r_stream)),
+        s_stream_(std::move(s_stream)),
+        read_interval_(read_interval) {
     if (!r_stream_ && !s_stream_) {
       throw std::invalid_argument("Streams cannot both be null");
+    }
+    if (read_interval_ == std::chrono::duration<double>::zero()) {
+      spdlog::warn("Read interval is set to zero, which may cause busy waiting");
     }
   }
 
@@ -44,10 +53,11 @@ class TupleReader {
    * @return the next tuple either from R or S stream, or nullopt if no more tuples.
    */
   auto GetNextTuple() -> std::optional<TupleType<KeyType, ValueType>> {
-    auto return_tuple = [this](std::optional<TupleType<KeyType, ValueType>> &tuple) {
-      auto result = std::move(tuple);
-      tuple.reset();
-      last_ts_ = tuple->timestamp_;
+    auto return_tuple = [this](std::optional<TupleType<KeyType, ValueType>> &tuple_opt) {
+      auto result = std::move(tuple_opt);
+      tuple_opt.reset();
+      last_ts_ = tuple_opt->timestamp_;
+      std::this_thread::sleep_for(read_interval_);  // simulate read delay
       return result;
     };
 
@@ -101,6 +111,8 @@ class TupleReader {
   // The streams to read from
   std::unique_ptr<Stream<KeyType, ValueType>> r_stream_;
   std::unique_ptr<Stream<KeyType, ValueType>> s_stream_;
+
+  const std::chrono::duration<double> read_interval_;  // 10ms timeout
 };
 
 }  // namespace stream

@@ -145,7 +145,7 @@ class BroadcastWindow {
         throw std::runtime_error("Invalid tuple control flag");
       }
     }
-    spdlog::info("Window {}: total join count: {}", id_, join_count);
+    spdlog::info("Window {}: Join count: {}", id_, join_count);
   }
 
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
