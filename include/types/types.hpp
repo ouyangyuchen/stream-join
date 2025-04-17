@@ -13,6 +13,7 @@ namespace stream {
 using TsType = int64_t;  // timestamp type
 
 enum class TupleFlag {
+  INVALID,  // invalid tuple (init state)
   INPUT_R,  // input tuple is from R stream
   INPUT_S,  // input tuple is from S stream
   ACK_S,    // ack message for S tuple (used in handshake join)
@@ -24,7 +25,7 @@ struct TupleType {
   KeyType key_;
   ValueType value_;
 
-  TupleFlag ctl_ = TupleFlag::INPUT_R;  // control/metainfo of this tuple
+  TupleFlag ctl_ = TupleFlag::INVALID;  // control/metainfo of this tuple
 
   // handshake join flags
   bool forwarded_ = false;

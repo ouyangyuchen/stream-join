@@ -60,24 +60,9 @@ class HandshakeWindow {
    * forward threshold.
    */
   void Start(KeyType diff) {
-    // process the input tuples as the paper Figure 9
-    auto process_func = [this, diff]() {
-      size_t join_count = 0;
-      for (auto tuple : *input_chan_) {
-        closed_guessed_ = false;  // restart the timer
-        if (tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S) {
-          join_count += ProcessLeft(tuple, diff);
-        } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
-          join_count += ProcessRight(tuple, diff);
-        } else {
-          throw std::runtime_error("Invalid tuple control flag");
-        }
-        ForwardTuples();
-      }
-      spdlog::info("Window {} join count: {}", id_, join_count);
-    };
-
-    std::thread process_thread(process_func);
+    std::thread process_thread(
+        [this, diff]() { ProcessRoutine(diff); }  // process tuples in the input channel
+    );
     std::thread check_thread(&HandshakeWindow::CheckClosed, this);
     check_thread.join();  // check thread finishes, terminate the while loop in process thread
     input_chan_->close();
@@ -95,6 +80,33 @@ class HandshakeWindow {
       closed_guessed_ = true;
       std::this_thread::sleep_for(check_flag_interval_);
     }
+  }
+
+  /**
+   * @brief Process tuples in the input channel and forward them to left/right correspondingly.
+   */
+  void ProcessRoutine(KeyType diff) {
+    size_t join_count{0};
+
+    while (!input_chan_->closed() || !input_chan_->empty()) {
+      if (!input_chan_->empty()) {  // process tuple non-blockingly
+        TupleType<KeyType, ValueType> tuple;
+        *input_chan_ >> tuple;
+        assert(tuple.ctl_ != TupleFlag::INVALID);
+
+        closed_guessed_ = false;  // restart the timer
+        if (tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S) {
+          join_count += ProcessLeft(tuple, diff);
+        } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
+          join_count += ProcessRight(tuple, diff);
+        } else {
+          throw std::runtime_error("Invalid tuple control flag");
+        }
+      }
+
+      ForwardTuples();
+    }
+    spdlog::info("Window {} join count: {}", id_, join_count);
   }
 
   /**
