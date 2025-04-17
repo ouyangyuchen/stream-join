@@ -134,9 +134,7 @@ class HandshakeWindow {
       return join_count;
     }
     if (tuple.ctl_ == TupleFlag::ACK_S) {
-      auto tuple_s = index_s_->PopOldest();
-      assert(tuple_s.forwarded_);
-      assert(tuple_s.ctl_ == TupleFlag::INPUT_S);
+      ProcessAck(tuple);
       // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
       return 0;
     }
@@ -165,11 +163,19 @@ class HandshakeWindow {
 
   void ForwardTuples() {
     if (index_s_->Size() > forward_threshold_) {
-      auto &tuple = index_s_->GetOldestRef();
-      if (!tuple.forwarded_) {
-        SendToLeft(tuple);
-        tuple.forwarded_ = true;
-        // spdlog::debug("Window {} forward: {}", id_, tuple);
+      auto &tuple_head = index_s_->GetOldestRef();
+      if (!tuple_head.forwarded_) {
+        tuple_head.forwarded_ = true;
+        if (output_left_chan_ == nullptr) {
+          // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
+          // therefore, the left-most one directly processes the ack as if it is received
+          ProcessAck(tuple_head);
+        } else {
+          auto tuple_sent{tuple_head};
+          tuple_sent.forwarded_ = false;  // the tuple to be sent should not be set as forwarded
+          SendToLeft(tuple_sent);
+          // spdlog::debug("Window {} forward: {}", id_, tuple);
+        }
       }
     }
     if (index_r_->Size() > forward_threshold_) {
@@ -182,16 +188,7 @@ class HandshakeWindow {
 
   auto SendToLeft(const TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::INPUT_S);
-    if (output_left_chan_) {
-      (*output_left_chan_) << tuple;
-    } else {
-      // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
-      // therefore, the left-most one should send ack(s) to itself
-      // FIXME: deadlock if input channel is full
-      auto ack_tuple{tuple};
-      ack_tuple.ctl_ = TupleFlag::ACK_S;
-      *(input_chan_) << ack_tuple;
-    }
+    (*output_left_chan_) << tuple;
   }
 
   auto SendToRight(const TupleType<KeyType, ValueType> &tuple) -> void {
@@ -199,6 +196,13 @@ class HandshakeWindow {
     if (output_right_chan_) {
       (*output_right_chan_) << tuple;
     }
+  }
+
+  auto ProcessAck(const TupleType<KeyType, ValueType> &tuple) -> void {
+    auto tuple_s = index_s_->PopOldest();
+    assert(tuple_s.forwarded_);
+    assert(tuple_s.ctl_ == TupleFlag::INPUT_S);
+    // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
 
   ChannelPointer<KeyType, ValueType> output_left_chan_;   // send s tuples to the left
