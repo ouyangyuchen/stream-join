@@ -6,6 +6,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <deque>
 #include <iostream>
 #include <ostream>
 #include <thread>
@@ -105,6 +106,7 @@ class HandshakeWindow {
       }
 
       ForwardTuples();
+      FlushPendings();
     }
     spdlog::info("Window {} join count: {}", id_, join_count);
   }
@@ -186,15 +188,44 @@ class HandshakeWindow {
     }
   }
 
+  /**
+   * @brief Flush pending tuples to the left/right output channels except when the channels are
+   * almost full.
+   */
+  void FlushPendings() {
+    if (output_left_chan_) {
+      while (!pending_list_left_.empty()) {
+        if (output_left_chan_->full(FULL_THRESHOLD)) {
+          break;  // avoid full the channel when sending the tuple concurrently
+        }
+        auto tuple_sent = pending_list_left_.front();
+        pending_list_left_.pop_front();
+        *output_left_chan_ << tuple_sent;
+      }
+    }
+    if (output_right_chan_) {
+      while (!pending_list_right_.empty()) {
+        if (output_right_chan_->full(FULL_THRESHOLD)) {
+          break;
+        }
+        auto tuple_sent = pending_list_right_.front();
+        pending_list_right_.pop_front();
+        *output_right_chan_ << tuple_sent;
+      }
+    }
+  }
+
   auto SendToLeft(const TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::INPUT_S);
-    (*output_left_chan_) << tuple;
+    // (*output_left_chan_) << tuple;
+    pending_list_left_.emplace_back(tuple);
   }
 
   auto SendToRight(const TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::ACK_S || tuple.ctl_ == TupleFlag::INPUT_R);
     if (output_right_chan_) {
-      (*output_right_chan_) << tuple;
+      // (*output_right_chan_) << tuple;
+      pending_list_right_.emplace_back(tuple);
     }
   }
 
@@ -205,16 +236,21 @@ class HandshakeWindow {
     // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
 
-  ChannelPointer<KeyType, ValueType> output_left_chan_;   // send s tuples to the left
+  ChannelPointer<KeyType, ValueType> output_left_chan_;          // send s tuples to the left
+  std::deque<TupleType<KeyType, ValueType>> pending_list_left_;  // pending tuples to be sent
+
   ChannelPointer<KeyType, ValueType> output_right_chan_;  // send r tuples and ack(s) to the right
-  ChannelPointer<KeyType, ValueType> input_chan_;
+  std::deque<TupleType<KeyType, ValueType>> pending_list_right_;  // pending tuples to be sent
+
+  ChannelPointer<KeyType, ValueType> input_chan_;  // input from left/right/master
 
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
   const size_t window_size_r_;
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
   const size_t window_size_s_;
 
-  const size_t forward_threshold_;  // threshold for forwarding tuples
+  const size_t forward_threshold_;            // threshold for forwarding tuples
+  static constexpr size_t FULL_THRESHOLD{3};  // threshold for considering the channel is full
 
   std::ostream &os_;  // output stream for join results
 

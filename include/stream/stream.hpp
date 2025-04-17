@@ -29,16 +29,10 @@ template <typename KeyType, typename ValueType>
 class TupleReader {
  public:
   TupleReader(std::unique_ptr<Stream<KeyType, ValueType>> r_stream,
-              std::unique_ptr<Stream<KeyType, ValueType>> s_stream,
-              std::chrono::duration<double> read_interval = std::chrono::milliseconds(1))
-      : r_stream_(std::move(r_stream)),
-        s_stream_(std::move(s_stream)),
-        read_interval_(read_interval) {
+              std::unique_ptr<Stream<KeyType, ValueType>> s_stream)
+      : r_stream_(std::move(r_stream)), s_stream_(std::move(s_stream)) {
     if (!r_stream_ && !s_stream_) {
       throw std::invalid_argument("Streams cannot both be null");
-    }
-    if (read_interval_ == std::chrono::duration<double>::zero()) {
-      spdlog::warn("Read interval is set to zero, which may cause busy waiting");
     }
   }
 
@@ -57,7 +51,6 @@ class TupleReader {
       auto result = std::move(tuple_opt);
       tuple_opt.reset();
       last_ts_ = tuple_opt->timestamp_;
-      std::this_thread::sleep_for(read_interval_);  // simulate read delay
       return result;
     };
 
@@ -111,8 +104,6 @@ class TupleReader {
   // The streams to read from
   std::unique_ptr<Stream<KeyType, ValueType>> r_stream_;
   std::unique_ptr<Stream<KeyType, ValueType>> s_stream_;
-
-  const std::chrono::duration<double> read_interval_;  // 10ms timeout
 };
 
 }  // namespace stream
