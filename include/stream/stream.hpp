@@ -2,10 +2,8 @@
 #define STREAM_HPP_
 
 #include <spdlog/spdlog.h>
-#include <chrono>
 #include <memory>
 #include <optional>
-#include <thread>
 #include "types/types.hpp"
 
 namespace stream {

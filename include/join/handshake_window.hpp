@@ -6,6 +6,7 @@
 #include <cassert>
 #include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <ostream>
@@ -156,7 +157,10 @@ class HandshakeWindow {
       }
 
       index_s_->Insert(tuple);
-      SendToRight({tuple.timestamp_, tuple.key_, tuple.value_, TupleFlag::ACK_S});
+      auto tuple_ack{tuple};
+      tuple_ack.ctl_ = TupleFlag::ACK_S;
+      assert(tuple_ack.forwarded_ == false);
+      SendToRight(tuple_ack);
       return join_count;
     }
     throw std::runtime_error("Invalid tuple control flag");
@@ -167,24 +171,28 @@ class HandshakeWindow {
     if (index_s_->Size() > forward_threshold_) {
       auto &tuple_head = index_s_->GetOldestRef();
       if (!tuple_head.forwarded_) {
-        tuple_head.forwarded_ = true;
         if (output_left_chan_ == nullptr) {
           // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
           // therefore, the left-most one directly processes the ack as if it is received
+          tuple_head.forwarded_ = true;  // optional: for assertion check
           ProcessAck(tuple_head);
         } else {
-          auto tuple_sent{tuple_head};
-          tuple_sent.forwarded_ = false;  // the tuple to be sent should not be set as forwarded
-          SendToLeft(tuple_sent);
+          SendToLeft(tuple_head);
           // spdlog::debug("Window {} forward: {}", id_, tuple);
         }
       }
     }
     if (index_r_->Size() > forward_threshold_) {
-      auto tuple = index_r_->PopOldest();
-      assert(tuple.ctl_ == TupleFlag::INPUT_R);
-      SendToRight(tuple);
-      // spdlog::debug("Window {} forward: {}", id_, tuple);
+      auto &tuple = index_r_->GetOldestRef();  // delete is done by FlushPendings()
+      if (!tuple.forwarded_) {
+        if (output_right_chan_ == nullptr) {
+          // right-most sub-window sends "r" tuple to the null
+          index_r_->PopOldest();
+        } else {
+          SendToRight(tuple);
+          // spdlog::debug("Window {} forward: {}", id_, tuple);
+        }
+      }
     }
   }
 
@@ -210,29 +218,44 @@ class HandshakeWindow {
         }
         auto tuple_sent = pending_list_right_.front();
         pending_list_right_.pop_front();
+
+        // result completeness: tuple r is deleted from index until its pending tuple is flushed
+        if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
+          auto tuple_del = index_r_->PopOldest();
+          assert(tuple_del.key_ == tuple_sent.key_);
+          assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
+        }
         *output_right_chan_ << tuple_sent;
       }
     }
   }
 
-  auto SendToLeft(const TupleType<KeyType, ValueType> &tuple) -> void {
+  auto SendToLeft(TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::INPUT_S);
-    // (*output_left_chan_) << tuple;
-    pending_list_left_.emplace_back(tuple);
+    assert(tuple.forwarded_ == false);
+    if (output_left_chan_) {
+      pending_list_left_.emplace_back(tuple);
+      tuple.forwarded_ = true;
+    }
   }
 
-  auto SendToRight(const TupleType<KeyType, ValueType> &tuple) -> void {
+  auto SendToRight(TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::ACK_S || tuple.ctl_ == TupleFlag::INPUT_R);
+    assert(tuple.forwarded_ == false);
     if (output_right_chan_) {
-      // (*output_right_chan_) << tuple;
       pending_list_right_.emplace_back(tuple);
+      tuple.forwarded_ = true;
     }
   }
 
   auto ProcessAck(const TupleType<KeyType, ValueType> &tuple) -> void {
-    auto tuple_s = index_s_->PopOldest();
+    auto &tuple_s = index_s_->GetOldestRef();
     assert(tuple_s.forwarded_);
     assert(tuple_s.ctl_ == TupleFlag::INPUT_S);
+    assert(tuple_s.key_ == tuple.key_);
+    assert(tuple_s.timestamp_ == tuple.timestamp_);
+    assert(tuple_s.value_ == tuple.value_);
+    index_s_->PopOldest();
     // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
 
@@ -277,9 +300,6 @@ class HandshakeJoiner {
         os_(os) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
-    }
-    if (window_len_ % num_workers != 0) {
-      throw std::invalid_argument("Window length must be divisible by number of workers");
     }
 
     // create the input channels
