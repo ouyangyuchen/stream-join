@@ -150,7 +150,7 @@ class HandshakeWindow {
       auto results = index_r_->RangeSearch({tuple.key_ - diff, tuple.key_ + diff});
       size_t join_count = 0;
       for (const auto &tuple_r : results) {
-        if (TimeStampMatched(tuple_r, tuple)) {
+        if (TimeStampMatched(tuple_r, tuple) && !tuple_r.forwarded_) {
           spdlog::debug("{} | {}", tuple_r, tuple);
           ++join_count;
         }

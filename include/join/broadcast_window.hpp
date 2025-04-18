@@ -97,7 +97,7 @@ class BroadcastWindow {
     std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
     auto results = index_s_->RangeSearch(key_range);
     for (const auto &result : results) {
-      spdlog::debug("{} | {}", result, tuple);
+      spdlog::debug("{} | {}", tuple, result);
     }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_R

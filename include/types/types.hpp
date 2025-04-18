@@ -106,8 +106,7 @@ struct fmt::formatter<stream::TupleType<KeyType, ValueType>> {
     if (presentation_ == 's') {
       return fmt::format_to(ctx.out(), "T({},{},{})", tuple.timestamp_, tuple.key_, ctl_str);
     }
-    return fmt::format_to(ctx.out(), "(ts={}, key={}, value={}, {})", tuple.timestamp_, tuple.key_,
-                          tuple.value_, ctl_str);
+    return fmt::format_to(ctx.out(), "(ts={}, key={}, {})", tuple.timestamp_, tuple.key_, ctl_str);
   }
 };
 
