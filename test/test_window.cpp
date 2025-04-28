@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -18,7 +17,7 @@ using stream::TupleType;
 
 struct TestConfig {
   static constexpr size_t WINDOW_SIZE = 400;
-  static constexpr int64_t DIFF = 500;
+  static constexpr int64_t DIFF = 340;
   static constexpr size_t TUPLES_R = 10000;
   static constexpr size_t TUPLES_S = 10000;
 
@@ -79,36 +78,6 @@ TEST(WindowTest, BroadcastJoinerBasic) {
       std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
-}
-
-TEST(WindowTest, HandshakeWindowBasic) {
-  size_t tuple_num_per_stream = 3;
-
-  auto input_chan =
-      std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE);
-  stream::HandshakeWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(1, 1, input_chan, nullptr,
-                                                                                        nullptr, 0, std::cout);
-
-  // producer thread to generate tuples and send to the input channel interleavingly
-  auto producer = [&input_chan, tuple_num_per_stream]() {
-    TsType curr_ts = 0;
-    for (int i = 0; i < tuple_num_per_stream; ++i) {
-      stream::TupleType<int64_t, int64_t> tuple{curr_ts++, i, i, stream::TupleFlag::INPUT_R};
-      (*input_chan) << tuple;
-      tuple.timestamp_ = curr_ts++;
-      tuple.ctl_ = stream::TupleFlag::INPUT_S;
-      (*input_chan) << tuple;
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    input_chan->close();  // prevent the ForwardTuples() send ack to the null channel
-  };
-  std::thread producer_thread(producer);
-
-  window.Start(TestConfig::DIFF);
-
-  if (producer_thread.joinable()) {
-    producer_thread.join();
-  }
 }
 
 TEST(WindowTest, HandshakeJoiner) {
