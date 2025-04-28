@@ -33,9 +33,8 @@ class BroadcastWindow {
    * @param id id of the window (debugging purpose)
    * @param os output stream for logging/debugging
    */
-  BroadcastWindow(size_t window_len_S, size_t window_len_R,
-                  ChannelPointer<KeyType, ValueType> input_chan, int32_t id = -1,
-                  std::ostream &os = std::cout)
+  BroadcastWindow(size_t window_len_S, size_t window_len_R, ChannelPointer<KeyType, ValueType> input_chan,
+                  int32_t id = -1, std::ostream &os = std::cout)
       : window_size_s_(window_len_S),
         window_size_r_(window_len_R),
         input_chan_(input_chan),
@@ -179,9 +178,8 @@ class BroadcastJoiner {
                 "StreamType must be derived from msd::stream::Stream");
 
  public:
-  BroadcastJoiner(size_t num_workers, size_t window_size, size_t channel_buffer_size,
-                  std::unique_ptr<StreamType> R, std::unique_ptr<StreamType> S,
-                  std::ostream &os = std::cout)
+  BroadcastJoiner(size_t num_workers, size_t window_size, size_t channel_buffer_size, std::unique_ptr<StreamType> R,
+                  std::unique_ptr<StreamType> S, std::ostream &os = std::cout)
       : num_workers_(num_workers),
         channels_(num_workers),
         window_size_(window_size),
@@ -273,11 +271,10 @@ class BroadcastJoiner {
 
   TupleReader<KeyType, ValueType> tuple_reader_;  // tuple reader for the input streams (R and S)
 
-  std::vector<BroadcastWindow<KeyType, ValueType, Container>>
-      subwindows_;                                            // subwindows for the join workers
-  std::vector<ChannelPointer<KeyType, ValueType>> channels_;  // input channels for the subwindows
-  std::vector<std::thread> workers_;                          // working threads for the subwindows
-  std::thread master_thread_;                                 // master thread for the joiner
+  std::vector<BroadcastWindow<KeyType, ValueType, Container>> subwindows_;  // subwindows for the join workers
+  std::vector<ChannelPointer<KeyType, ValueType>> channels_;                // input channels for the subwindows
+  std::vector<std::thread> workers_;                                        // working threads for the subwindows
+  std::thread master_thread_;                                               // master thread for the joiner
 };
 }  // namespace stream
 

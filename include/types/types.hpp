@@ -48,8 +48,8 @@ auto operator<<(std::ostream &os, const TupleType<KeyType, ValueType> &tuple) ->
       ctl_str = "UNKNOWN";
   }
 
-  os << "(ts = " << tuple.timestamp_ << ", key = " << tuple.key_ << ", value = " << tuple.value_
-     << ", " << ctl_str << ")";
+  os << "(ts = " << tuple.timestamp_ << ", key = " << tuple.key_ << ", value = " << tuple.value_ << ", " << ctl_str
+     << ")";
   return os;
 }
 
@@ -85,8 +85,7 @@ struct fmt::formatter<stream::TupleType<KeyType, ValueType>> {
 
   // Formats the TupleType
   template <typename FormatContext>
-  auto format(const stream::TupleType<KeyType, ValueType> &tuple, FormatContext &ctx) const
-      -> decltype(ctx.out()) {
+  auto format(const stream::TupleType<KeyType, ValueType> &tuple, FormatContext &ctx) const -> decltype(ctx.out()) {
     std::string ctl_str;
     switch (tuple.ctl_) {
       case stream::TupleFlag::INPUT_R:
