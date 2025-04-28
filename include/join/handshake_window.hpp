@@ -81,9 +81,13 @@ class HandshakeWindow {
    * @brief Process tuples in the input channel and forward them to left/right correspondingly.
    */
   void ProcessRoutine(KeyType diff) {
+    size_t iteration{0};
     size_t join_count{0};
+    size_t index_r_count_avg{0};  // average r tuple workload
+    size_t index_s_count_avg{0};  // average s tuple workload
 
     while (!ShouldTerminate()) {
+      ++iteration;
       if (!input_left_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_left_chan_ >> tuple;
@@ -99,8 +103,15 @@ class HandshakeWindow {
 
       ForwardTuples();
       FlushPendings();
+
+      index_r_count_avg += index_r_->Size();
+      index_s_count_avg += index_s_->Size();
     }
+
+    index_r_count_avg /= iteration;
+    index_s_count_avg /= iteration;
     spdlog::info("Window {} join count: {}", id_, join_count);
+    spdlog::info("Window {} index r size: {}, index s size: {}", id_, index_r_count_avg, index_s_count_avg);
   }
 
   /**
@@ -203,6 +214,7 @@ class HandshakeWindow {
       if (pending_list_left_.empty()) {
         if ((input_right_chan_->closed() && input_right_chan_->empty()) && index_s_->Size() <= forward_threshold_) {
           output_left_chan_->close();  // no more s tuples to be sent when no s tuples will be received
+          spdlog::info("Window {} closes left channel", id_);
         }
       }
     }
@@ -226,6 +238,7 @@ class HandshakeWindow {
         if ((input_left_chan_->closed() && input_left_chan_->empty()) &&
             (input_right_chan_->closed() && input_right_chan_->empty()) && (index_r_->Size() <= forward_threshold_)) {
           output_right_chan_->close();  // no more r tuples or s ack to be sent when no input anymore
+          spdlog::info("Window {} closes right channel", id_);
         }
       }
     }
@@ -355,8 +368,9 @@ class HandshakeJoiner {
         throw std::runtime_error("Invalid tuple control flag");
       }
     }
-
+    spdlog::info("Master closes r input channel");
     send_r_chan_->close();
+    spdlog::info("Master closes s input channel");
     send_s_chan_->close();
   }
 
