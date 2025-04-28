@@ -33,7 +33,8 @@ class HandshakeWindow {
                 "Container must be derived from Index<KeyType, ValueType>");
 
  public:
-  HandshakeWindow(size_t window_size, size_t forward_threshold, ChannelPointer<KeyType, ValueType> input_chan,
+  HandshakeWindow(size_t window_size, size_t forward_threshold, ChannelPointer<KeyType, ValueType> input_chan_left,
+                  ChannelPointer<KeyType, ValueType> input_chan_right,
                   ChannelPointer<KeyType, ValueType> output_left_chan,
                   ChannelPointer<KeyType, ValueType> output_right_chan, int32_t id = -1, std::ostream &os = std::cout)
       : window_size_r_(window_size),
@@ -41,15 +42,18 @@ class HandshakeWindow {
         forward_threshold_(forward_threshold),
         output_left_chan_(output_left_chan),
         output_right_chan_(output_right_chan),
-        input_chan_(input_chan),
+        input_left_chan_(input_chan_left),
+        input_right_chan_(input_chan_right),
         index_r_(std::make_unique<Container>()),
         index_s_(std::make_unique<Container>()),
         id_(id),
-        os_(os) {
-    if (input_chan_ == nullptr) {
-      throw std::invalid_argument("input channel must not be null");
-    }
-  }
+        os_(os) {}
+
+  HandshakeWindow() = delete;
+  HandshakeWindow(const HandshakeWindow &) = delete;
+  auto operator=(const HandshakeWindow &) -> HandshakeWindow & = delete;
+  HandshakeWindow(HandshakeWindow &&) = default;
+  auto operator=(HandshakeWindow &&) -> HandshakeWindow & = default;
 
   /**
    * @brief Read tuples from the input channel and process them.
@@ -62,51 +66,52 @@ class HandshakeWindow {
   void Start(KeyType diff) {
     std::thread process_thread([this, diff]() { ProcessRoutine(diff); }  // process tuples in the input channel
     );
-    std::thread check_thread(&HandshakeWindow::CheckClosed, this);
-    check_thread.join();  // check thread finishes, terminate the while loop in process thread
-    input_chan_->close();
     process_thread.join();
   }
 
  private:
-  /**
-   * @brief Check if the input channel is empty for a while.
-   * @details If the function returns, the input channel is empty for a while, which is assumed
-   * that the window should stop listenning the input.
-   */
-  void CheckClosed() {
-    while (!closed_guessed_) {
-      closed_guessed_ = true;
-      std::this_thread::sleep_for(check_flag_interval_);
-    }
+  inline bool ShouldTerminate() {
+    return (input_left_chan_->closed() && input_left_chan_->empty()) &&
+           (input_right_chan_->closed() && input_right_chan_->empty()) &&
+           (output_left_chan_ == nullptr || output_left_chan_->closed()) &&
+           (output_right_chan_ == nullptr || output_right_chan_->closed());
   }
 
   /**
    * @brief Process tuples in the input channel and forward them to left/right correspondingly.
    */
   void ProcessRoutine(KeyType diff) {
+    size_t iteration{0};
     size_t join_count{0};
+    size_t index_r_count_avg{0};  // average r tuple workload
+    size_t index_s_count_avg{0};  // average s tuple workload
 
-    while (!input_chan_->closed() || !input_chan_->empty()) {
-      if (!input_chan_->empty()) {  // process tuple non-blockingly
+    while (!ShouldTerminate()) {
+      ++iteration;
+      if (!input_left_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
-        *input_chan_ >> tuple;
-        assert(tuple.ctl_ != TupleFlag::INVALID);
-
-        closed_guessed_ = false;  // restart the timer
-        if (tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S) {
-          join_count += ProcessLeft(tuple, diff);
-        } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
-          join_count += ProcessRight(tuple, diff);
-        } else {
-          throw std::runtime_error("Invalid tuple control flag");
-        }
+        *input_left_chan_ >> tuple;
+        assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S);
+        join_count += ProcessLeft(tuple, diff);
+      }
+      if (!input_right_chan_->empty()) {  // process tuple non-blockingly
+        TupleType<KeyType, ValueType> tuple;
+        *input_right_chan_ >> tuple;
+        assert(tuple.ctl_ == TupleFlag::INPUT_S);
+        join_count += ProcessRight(tuple, diff);
       }
 
       ForwardTuples();
       FlushPendings();
+
+      index_r_count_avg += index_r_->Size();
+      index_s_count_avg += index_s_->Size();
     }
+
+    index_r_count_avg /= iteration;
+    index_s_count_avg /= iteration;
     spdlog::info("Window {} join count: {}", id_, join_count);
+    spdlog::info("Window {} index r size: {}, index s size: {}", id_, index_r_count_avg, index_s_count_avg);
   }
 
   /**
@@ -197,7 +202,7 @@ class HandshakeWindow {
    * almost full.
    */
   void FlushPendings() {
-    if (output_left_chan_) {
+    if (output_left_chan_ && !output_left_chan_->closed()) {
       while (!pending_list_left_.empty()) {
         if (output_left_chan_->full(FULL_THRESHOLD)) {
           break;  // avoid full the channel when sending the tuple concurrently
@@ -206,8 +211,14 @@ class HandshakeWindow {
         pending_list_left_.pop_front();
         *output_left_chan_ << tuple_sent;
       }
+      if (pending_list_left_.empty()) {
+        if ((input_right_chan_->closed() && input_right_chan_->empty()) && index_s_->Size() <= forward_threshold_) {
+          output_left_chan_->close();  // no more s tuples to be sent when no s tuples will be received
+          spdlog::info("Window {} closes left channel", id_);
+        }
+      }
     }
-    if (output_right_chan_) {
+    if (output_right_chan_ && !output_right_chan_->closed()) {
       while (!pending_list_right_.empty()) {
         if (output_right_chan_->full(FULL_THRESHOLD)) {
           break;
@@ -222,6 +233,13 @@ class HandshakeWindow {
           assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
         }
         *output_right_chan_ << tuple_sent;
+      }
+      if (pending_list_right_.empty()) {
+        if ((input_left_chan_->closed() && input_left_chan_->empty()) &&
+            (input_right_chan_->closed() && input_right_chan_->empty()) && (index_r_->Size() <= forward_threshold_)) {
+          output_right_chan_->close();  // no more r tuples or s ack to be sent when no input anymore
+          spdlog::info("Window {} closes right channel", id_);
+        }
       }
     }
   }
@@ -261,7 +279,9 @@ class HandshakeWindow {
   ChannelPointer<KeyType, ValueType> output_right_chan_;          // send r tuples and ack(s) to the right
   std::deque<TupleType<KeyType, ValueType>> pending_list_right_;  // pending tuples to be sent
 
-  ChannelPointer<KeyType, ValueType> input_chan_;  // input from left/right/master
+  // ChannelPointer<KeyType, ValueType> input_chan_;        // input from left/right/master
+  ChannelPointer<KeyType, ValueType> input_left_chan_;   // receive r tuples or ack(s) from the left
+  ChannelPointer<KeyType, ValueType> input_right_chan_;  // receive s tuples from the right
 
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
   const size_t window_size_r_;
@@ -274,9 +294,6 @@ class HandshakeWindow {
   std::ostream &os_;  // output stream for join results
 
   int32_t id_;  // id of the window (debugging purpose)
-
-  bool closed_guessed_{false};  // flag to indicate if the window should be closed
-  const std::chrono::milliseconds check_flag_interval_{2000};
 };
 
 template <typename KeyType, typename ValueType, typename Container>
@@ -297,21 +314,24 @@ class HandshakeJoiner {
       throw std::invalid_argument("Number of workers must be greater than 0");
     }
 
-    // create the input channels
-    auto input_channels = std::vector<ChannelPointer<KeyType, ValueType>>(num_workers_);
+    // create the bidirectional channels
+    auto right_direct_channels = std::vector<ChannelPointer<KeyType, ValueType>>(num_workers_);
+    auto left_direct_channels = std::vector<ChannelPointer<KeyType, ValueType>>(num_workers_);
     for (size_t i = 0; i < num_workers_; ++i) {
-      input_channels[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
+      right_direct_channels[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
+      left_direct_channels[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
     }
-    input_left_chan_ = input_channels[0];
-    input_right_chan_ = input_channels[num_workers_ - 1];
+    send_r_chan_ = right_direct_channels[0];
+    send_s_chan_ = left_direct_channels[num_workers_ - 1];
 
-    // create the windows
+    auto forward_threshold = window_len_ / num_workers_ + 1;  // +1 to guarantee the completeness of join results
     for (size_t i = 0; i < num_workers_; ++i) {
-      auto left_output_chan = (i == 0) ? nullptr : input_channels[i - 1];
-      auto right_output_chan = (i == num_workers_ - 1) ? nullptr : input_channels[i + 1];
-      auto forward_threshold = window_len / num_workers + 1;  // +1 to guarantee the completeness of join results
-      windows_.emplace_back(window_len_, forward_threshold, input_channels[i], left_output_chan, right_output_chan, i,
-                            os);
+      auto left_output_chan = (i == 0) ? nullptr : left_direct_channels[i - 1];
+      auto right_output_chan = (i == num_workers_ - 1) ? nullptr : right_direct_channels[i + 1];
+      auto left_input_chan = right_direct_channels[i];
+      auto right_input_chan = left_direct_channels[i];
+      windows_.emplace_back(window_len_, forward_threshold, left_input_chan, right_input_chan, left_output_chan,
+                            right_output_chan, i, os_);
     }
   }
 
@@ -341,16 +361,17 @@ class HandshakeJoiner {
         break;
       }
       if (tuple_opt->ctl_ == TupleFlag::INPUT_R) {
-        (*input_left_chan_) << *tuple_opt;
+        (*send_r_chan_) << *tuple_opt;
       } else if (tuple_opt->ctl_ == TupleFlag::INPUT_S) {
-        (*input_right_chan_) << *tuple_opt;
+        (*send_s_chan_) << *tuple_opt;
       } else {
         throw std::runtime_error("Invalid tuple control flag");
       }
     }
-
-    // workers will automatically close the input channels if they fail to receive tuples
-    // for a while
+    spdlog::info("Master closes r input channel");
+    send_r_chan_->close();
+    spdlog::info("Master closes s input channel");
+    send_s_chan_->close();
   }
 
  private:
@@ -363,8 +384,8 @@ class HandshakeJoiner {
   std::vector<HandshakeWindow<KeyType, ValueType, Container>> windows_;
   std::vector<std::thread> workers_;
 
-  ChannelPointer<KeyType, ValueType> input_left_chan_;   // send r tuples to the left most sub-window
-  ChannelPointer<KeyType, ValueType> input_right_chan_;  // send s tuples to the right most sub-window
+  ChannelPointer<KeyType, ValueType> send_r_chan_;  // send r tuples to the left most sub-window
+  ChannelPointer<KeyType, ValueType> send_s_chan_;  // send s tuples to the right most sub-window
 
   std::ostream &os_;  // output stream for join results
 

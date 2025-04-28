@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -18,7 +17,7 @@ using stream::TupleType;
 
 struct TestConfig {
   static constexpr size_t WINDOW_SIZE = 400;
-  static constexpr int64_t DIFF = 500;
+  static constexpr int64_t DIFF = 340;
   static constexpr size_t TUPLES_R = 10000;
   static constexpr size_t TUPLES_S = 10000;
 
@@ -35,8 +34,8 @@ struct TestConfig {
 TEST(WindowTest, BroadcastWindowBasic) {
   size_t tuple_num_per_stream = 3;
 
-  auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(
-      TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE);
+  auto input_chan =
+      std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE);
   stream::BroadcastWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
       TestConfig::SUB_WINDOW_SIZE, TestConfig::WINDOW_SIZE, input_chan, 0, std::cout);
 
@@ -68,63 +67,30 @@ TEST(WindowTest, BroadcastJoinerBasic) {
   // partitioning, which is the same as using a single sub-window
   // -> the sum of all join results should be equal to the result of the BroadcastWindowBasic
 
-  auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(
-      TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE);
+  auto input_chan =
+      std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE);
 
-  std::unique_ptr<stream::SequentialStream> r =
-      std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
-  std::unique_ptr<stream::SequentialStream> s =
-      std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
+  std::unique_ptr<stream::SequentialStream> r = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
+  std::unique_ptr<stream::SequentialStream> s = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
 
-  stream::BroadcastJoiner<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>,
-                          stream::SequentialStream>
-      joiner(TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE,
-             TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r), std::move(s), std::cout);
+  stream::BroadcastJoiner<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>, stream::SequentialStream> joiner(
+      TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
+      std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
-}
-
-TEST(WindowTest, HandshakeWindowBasic) {
-  size_t tuple_num_per_stream = 3;
-
-  auto input_chan = std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(
-      TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE);
-  stream::HandshakeWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
-      1, 1, input_chan, nullptr, nullptr, 0, std::cout);
-
-  // producer thread to generate tuples and send to the input channel interleavingly
-  auto producer = [&input_chan, tuple_num_per_stream]() {
-    TsType curr_ts = 0;
-    for (int i = 0; i < tuple_num_per_stream; ++i) {
-      stream::TupleType<int64_t, int64_t> tuple{curr_ts++, i, i, stream::TupleFlag::INPUT_R};
-      (*input_chan) << tuple;
-      tuple.timestamp_ = curr_ts++;
-      tuple.ctl_ = stream::TupleFlag::INPUT_S;
-      (*input_chan) << tuple;
-    }
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    input_chan->close();  // prevent the ForwardTuples() send ack to the null channel
-  };
-  std::thread producer_thread(producer);
-
-  window.Start(TestConfig::DIFF);
-
-  if (producer_thread.joinable()) {
-    producer_thread.join();
-  }
 }
 
 TEST(WindowTest, HandshakeJoiner) {
   // rubbish tuples are used for flushing the valid tuples inside the windows
   constexpr auto rubbish_tuple_num = TestConfig::HANDSHAKE_WORKERS * (TestConfig::WINDOW_SIZE + 1);
-  std::unique_ptr<stream::SequentialStream> r = std::make_unique<stream::SequentialStream>(
-      0, TestConfig::TUPLES_R, 1, rubbish_tuple_num, -0x1000000000);
-  std::unique_ptr<stream::SequentialStream> s = std::make_unique<stream::SequentialStream>(
-      0, TestConfig::TUPLES_S, 1, rubbish_tuple_num, 0x1000000000);
+  std::unique_ptr<stream::SequentialStream> r =
+      std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R, 1, rubbish_tuple_num, -0x1000000000);
+  std::unique_ptr<stream::SequentialStream> s =
+      std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S, 1, rubbish_tuple_num, 0x1000000000);
 
   stream::HandshakeJoiner<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> joiner(
-      TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE,
-      TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r), std::move(s), std::cout);
+      TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r),
+      std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
 }
