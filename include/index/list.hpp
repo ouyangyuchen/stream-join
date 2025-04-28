@@ -37,8 +37,7 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 // Implementation of ListIndex methods
 
 template <typename KeyType, typename ValueType>
-auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple)
-    -> void {
+auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> void {
   index_.push_back(tuple);
 }
 
@@ -69,8 +68,7 @@ auto stream::ListIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType,
 }
 
 template <typename KeyType, typename ValueType>
-auto stream::ListIndex<KeyType, ValueType>::RangeSearch(
-    const std::pair<KeyType, KeyType> &key_range) const
+auto stream::ListIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
     -> std::vector<TupleType<KeyType, ValueType>> {
   std::vector<TupleType<KeyType, ValueType>> result;
   for (const auto &tuple : index_) {

@@ -33,11 +33,9 @@ class HandshakeWindow {
                 "Container must be derived from Index<KeyType, ValueType>");
 
  public:
-  HandshakeWindow(size_t window_size, size_t forward_threshold,
-                  ChannelPointer<KeyType, ValueType> input_chan,
+  HandshakeWindow(size_t window_size, size_t forward_threshold, ChannelPointer<KeyType, ValueType> input_chan,
                   ChannelPointer<KeyType, ValueType> output_left_chan,
-                  ChannelPointer<KeyType, ValueType> output_right_chan, int32_t id = -1,
-                  std::ostream &os = std::cout)
+                  ChannelPointer<KeyType, ValueType> output_right_chan, int32_t id = -1, std::ostream &os = std::cout)
       : window_size_r_(window_size),
         window_size_s_(window_size),
         forward_threshold_(forward_threshold),
@@ -62,8 +60,7 @@ class HandshakeWindow {
    * forward threshold.
    */
   void Start(KeyType diff) {
-    std::thread process_thread(
-        [this, diff]() { ProcessRoutine(diff); }  // process tuples in the input channel
+    std::thread process_thread([this, diff]() { ProcessRoutine(diff); }  // process tuples in the input channel
     );
     std::thread check_thread(&HandshakeWindow::CheckClosed, this);
     check_thread.join();  // check thread finishes, terminate the while loop in process thread
@@ -115,8 +112,7 @@ class HandshakeWindow {
   /**
    * @brief Check if the timestamps of two tuples satisfy the window limit.
    */
-  inline auto TimeStampMatched(const TupleType<KeyType, ValueType> &r,
-                               const TupleType<KeyType, ValueType> &s) -> bool {
+  inline auto TimeStampMatched(const TupleType<KeyType, ValueType> &r, const TupleType<KeyType, ValueType> &s) -> bool {
     if (r.timestamp_ > s.timestamp_) {
       return r.timestamp_ <= s.timestamp_ + window_size_s_;
     }
@@ -262,7 +258,7 @@ class HandshakeWindow {
   ChannelPointer<KeyType, ValueType> output_left_chan_;          // send s tuples to the left
   std::deque<TupleType<KeyType, ValueType>> pending_list_left_;  // pending tuples to be sent
 
-  ChannelPointer<KeyType, ValueType> output_right_chan_;  // send r tuples and ack(s) to the right
+  ChannelPointer<KeyType, ValueType> output_right_chan_;          // send r tuples and ack(s) to the right
   std::deque<TupleType<KeyType, ValueType>> pending_list_right_;  // pending tuples to be sent
 
   ChannelPointer<KeyType, ValueType> input_chan_;  // input from left/right/master
@@ -291,8 +287,7 @@ class HandshakeJoiner {
  public:
   HandshakeJoiner(size_t num_workers, size_t window_len, size_t channel_buffer_size,
                   std::unique_ptr<Stream<KeyType, ValueType>> stream_r,
-                  std::unique_ptr<Stream<KeyType, ValueType>> stream_s,
-                  std::ostream &os = std::cout)
+                  std::unique_ptr<Stream<KeyType, ValueType>> stream_s, std::ostream &os = std::cout)
       : num_workers_(num_workers),
         window_len_(window_len),
         channel_buffer_size_(channel_buffer_size),
@@ -314,10 +309,9 @@ class HandshakeJoiner {
     for (size_t i = 0; i < num_workers_; ++i) {
       auto left_output_chan = (i == 0) ? nullptr : input_channels[i - 1];
       auto right_output_chan = (i == num_workers_ - 1) ? nullptr : input_channels[i + 1];
-      auto forward_threshold =
-          window_len / num_workers + 1;  // +1 to guarantee the completeness of join results
-      windows_.emplace_back(window_len_, forward_threshold, input_channels[i], left_output_chan,
-                            right_output_chan, i, os);
+      auto forward_threshold = window_len / num_workers + 1;  // +1 to guarantee the completeness of join results
+      windows_.emplace_back(window_len_, forward_threshold, input_channels[i], left_output_chan, right_output_chan, i,
+                            os);
     }
   }
 
@@ -369,9 +363,8 @@ class HandshakeJoiner {
   std::vector<HandshakeWindow<KeyType, ValueType, Container>> windows_;
   std::vector<std::thread> workers_;
 
-  ChannelPointer<KeyType, ValueType> input_left_chan_;  // send r tuples to the left most sub-window
-  ChannelPointer<KeyType, ValueType>
-      input_right_chan_;  // send s tuples to the right most sub-window
+  ChannelPointer<KeyType, ValueType> input_left_chan_;   // send r tuples to the left most sub-window
+  ChannelPointer<KeyType, ValueType> input_right_chan_;  // send s tuples to the right most sub-window
 
   std::ostream &os_;  // output stream for join results
 

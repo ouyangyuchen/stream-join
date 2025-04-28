@@ -8,11 +8,7 @@ class SequentialStream : public Stream<int64_t, int64_t> {
  public:
   SequentialStream(int64_t start, int64_t end, int64_t step = 1, size_t tail_rubbish_tuples = 0,
                    int64_t rubbish_key = -0x1000000000)
-      : start_(start),
-        end_(end),
-        step_(step),
-        tail_rubbish_tuples_(tail_rubbish_tuples),
-        rubbish_key_(rubbish_key) {
+      : start_(start), end_(end), step_(step), tail_rubbish_tuples_(tail_rubbish_tuples), rubbish_key_(rubbish_key) {
     if (step <= 0) {
       throw std::invalid_argument("step must be greater than 0");
     }
