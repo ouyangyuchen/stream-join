@@ -5,6 +5,7 @@
 #include <thread>
 #include <utility>
 
+#include "index/bplustree.hpp"
 #include "index/list.hpp"
 #include "join/broadcast_window.hpp"
 #include "join/handshake_window.hpp"
@@ -73,7 +74,7 @@ TEST(WindowTest, BroadcastJoinerBasic) {
   std::unique_ptr<stream::SequentialStream> r = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
   std::unique_ptr<stream::SequentialStream> s = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
 
-  stream::BroadcastJoiner<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>, stream::SequentialStream> joiner(
+  stream::BroadcastJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>, stream::SequentialStream> joiner(
       TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
       std::move(s), std::cout);
 
@@ -88,7 +89,7 @@ TEST(WindowTest, HandshakeJoiner) {
   std::unique_ptr<stream::SequentialStream> s =
       std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S, 1, rubbish_tuple_num, 0x1000000000);
 
-  stream::HandshakeJoiner<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> joiner(
+  stream::HandshakeJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r),
       std::move(s), std::cout);
 

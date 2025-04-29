@@ -80,11 +80,7 @@ auto BPlusTreeIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType, Va
     throw std::out_of_range("Index is empty");
   }
   auto oldest_key = arrival_list.front();
-  auto it = tree_.find(oldest_key);
-  if (it == tree_.end()) {
-    throw std::out_of_range("Key not found in index");
-  }
-  return it->second;
+  return tree_[oldest_key];
 }
 
 template <typename KeyType, typename ValueType>
