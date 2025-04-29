@@ -14,7 +14,7 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
   ~ListIndex() override = default;
 
-  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> void override;
+  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> bool override;
 
   auto PopOldest() -> TupleType<KeyType, ValueType> override;
 
@@ -39,12 +39,13 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 // Implementation of ListIndex methods
 
 template <typename KeyType, typename ValueType>
-auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> void {
+auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> bool {
   if (key_set_.find(tuple.key_) != key_set_.end()) {
-    return;
+    return false;
   }
   index_.push_back(tuple);
   key_set_.insert(tuple.key_);
+  return true;
 }
 
 template <typename KeyType, typename ValueType>

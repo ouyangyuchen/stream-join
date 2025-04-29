@@ -15,7 +15,7 @@ class BPlusTreeIndex : public WindowIndex<KeyType, ValueType> {
 
   ~BPlusTreeIndex() override = default;
 
-  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> void override;
+  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> bool override;
 
   auto PopOldest() -> TupleType<KeyType, ValueType> override;
 
@@ -36,12 +36,13 @@ class BPlusTreeIndex : public WindowIndex<KeyType, ValueType> {
 };
 
 template <typename KeyType, typename ValueType>
-auto BPlusTreeIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> void {
+auto BPlusTreeIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> bool {
   auto [_, success] = tree_.insert({tuple.key_, tuple});
   if (!success) {
-    return;
+    return false;
   }
   arrival_list.push_back(tuple.key_);
+  return true;
 }
 
 template <typename KeyType, typename ValueType>
