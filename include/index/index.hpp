@@ -12,7 +12,7 @@ class WindowIndex {
   virtual ~WindowIndex() = default;
 
   /**
-   * @brief Insert a tuple (timestamp + key value) into the index.
+   * @brief Insert a tuple (timestamp + key value) into the index. No op if key is already in the index.
    *
    * @param tuple The tuple to be inserted.
    */

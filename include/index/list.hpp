@@ -2,6 +2,7 @@
 #define INDEX_LIST_HPP_
 
 #include <deque>
+#include <set>
 #include "index/index.hpp"
 
 namespace stream {
@@ -30,6 +31,7 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
  private:
   std::deque<TupleType<KeyType, ValueType>> index_;  // list to store tuples in the arrival order
+  std::set<KeyType> key_set_;                        // set to store keys for duplication checking
 };
 
 }  // namespace stream
@@ -38,7 +40,11 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
 template <typename KeyType, typename ValueType>
 auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> void {
+  if (key_set_.find(tuple.key_) != key_set_.end()) {
+    return;
+  }
   index_.push_back(tuple);
+  key_set_.insert(tuple.key_);
 }
 
 template <typename KeyType, typename ValueType>
@@ -48,6 +54,7 @@ auto stream::ListIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, Va
   }
   auto oldest = index_.front();
   index_.pop_front();
+  key_set_.erase(oldest.key_);
   return oldest;
 }
 
