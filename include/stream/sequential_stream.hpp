@@ -27,7 +27,7 @@ class SequentialStream : public Stream<int64_t, int64_t> {
     } else {
       if (tail_rubbish_tuples_ > 0) {
         tuple.timestamp_ = start_++;
-        tuple.key_ = rubbish_key_;
+        tuple.key_ = rubbish_key_++;  // avoid duplicate key to fail the insertion of index
         tuple.value_ = tuple.key_;
         --tail_rubbish_tuples_;
       } else {
