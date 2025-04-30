@@ -76,19 +76,22 @@ class BroadcastWindow {
     while (!index_s_->Empty() && index_s_->GetOldest().timestamp_ < ts_lower_bound) {
       index_s_->PopOldest();
     }
-    // get the join results by range search [key - diff, key + diff]
-    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
-    auto results = index_s_->RangeSearch(key_range);
-    for (const auto &result : results) {
-      spdlog::debug("{} | {}", tuple, result);
-    }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_R
     ts_lower_bound = ts - window_size_r_;
     while (!index_r_->Empty() && index_r_->GetOldest().timestamp_ < ts_lower_bound) {
       index_r_->PopOldest();
     }
-    index_r_->Insert(tuple);
+    if (!index_r_->Insert(tuple)) {
+      return 0;  // duplicate key, skip
+    }
+
+    // get the join results by range search [key - diff, key + diff]
+    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
+    auto results = index_s_->RangeSearch(key_range);
+    for (const auto &result : results) {
+      spdlog::debug("{} | {}", tuple, result);
+    }
 
     return results.size();
   }
@@ -100,19 +103,22 @@ class BroadcastWindow {
     while (!index_r_->Empty() && index_r_->GetOldest().timestamp_ < ts_lower_bound) {
       index_r_->PopOldest();
     }
-    // get the join results by range search [key - diff, key + diff]
-    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
-    auto results = index_r_->RangeSearch(key_range);
-    for (const auto &result : results) {
-      spdlog::debug("{} | {}", result, tuple);
-    }
 
     // delete expired tuples in the same stream index + insert the new tuple into I_s
     ts_lower_bound = ts - window_size_s_;
     while (!index_s_->Empty() && index_s_->GetOldest().timestamp_ < ts_lower_bound) {
       index_s_->PopOldest();
     }
-    index_s_->Insert(tuple);
+    if (!index_s_->Insert(tuple)) {
+      return 0;  // duplicate key, skip
+    }
+
+    // get the join results by range search [key - diff, key + diff]
+    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
+    auto results = index_r_->RangeSearch(key_range);
+    for (const auto &result : results) {
+      spdlog::debug("{} | {}", result, tuple);
+    }
 
     return results.size();
   }
