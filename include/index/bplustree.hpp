@@ -30,10 +30,15 @@ class BPlusTreeIndex : public WindowIndex<KeyType, ValueType> {
 
   auto Empty() const -> bool override;
 
+  const static std::string Name;
+
  private:
   stx::btree_map<KeyType, TupleType<KeyType, ValueType>> tree_;  // B+ tree to store tuples and search
   std::deque<KeyType> arrival_list;                              // tuples in the arrival order
 };
+
+template <typename KeyType, typename ValueType>
+const std::string BPlusTreeIndex<KeyType, ValueType>::Name = "BPlusTreeIndex";
 
 template <typename KeyType, typename ValueType>
 auto BPlusTreeIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> bool {

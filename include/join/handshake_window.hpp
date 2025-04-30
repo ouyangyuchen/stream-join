@@ -335,13 +335,7 @@ class HandshakeJoiner {
     }
   }
 
-  ~HandshakeJoiner() {
-    for (size_t i = 0; i < num_workers_; ++i) {
-      if (workers_[i].joinable()) {
-        workers_[i].join();
-      }
-    }
-  }
+  ~HandshakeJoiner() = default;
 
   HandshakeJoiner(const HandshakeJoiner &) = delete;
   auto operator=(const HandshakeJoiner &) -> HandshakeJoiner & = delete;
@@ -372,6 +366,12 @@ class HandshakeJoiner {
     send_r_chan_->close();
     spdlog::info("Master closes s input channel");
     send_s_chan_->close();
+
+    for (size_t i = 0; i < num_workers_; ++i) {
+      if (workers_[i].joinable()) {
+        workers_[i].join();
+      }
+    }
   }
 
  private:

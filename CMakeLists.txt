@@ -73,9 +73,43 @@ target_link_libraries(unit_test
 )
 include_directories(${GTEST_INCLUDE_DIRS})
 
+# benchmark
+add_executable(benchmark_test
+    benchmark/joiner_benchmark.cpp
+)
+
+target_link_libraries(benchmark_test PRIVATE
+    benchmark::benchmark # Google Benchmark library (if using FetchContent alias)
+    benchmark::benchmark_main # Google Benchmark main library (if using FetchContent alias)
+    spdlog::spdlog      # Link spdlog to get fmt includes and library
+    Threads::Threads    # Needed for std::thread used in joiners
+)
+
+set_target_properties(benchmark_test PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) # Or your desired standard
+if(CMAKE_BUILD_TYPE STREQUAL "" OR CMAKE_BUILD_TYPE STREQUAL "None")
+  message(STATUS "No build type specified, defaulting to Release for benchmarks.")
+  set_property(TARGET benchmark_test PROPERTY CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+  set_property(TARGET benchmark_test PROPERTY CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3 -DNDEBUG")
+endif()
+
 # Add test target
 include(GoogleTest)
 gtest_discover_tests(unit_test)
+
+# install google benchmark
+include(FetchContent)
+FetchContent_Declare(
+  googletest_benchmark
+  GIT_REPOSITORY https://github.com/google/benchmark.git
+  GIT_TAG        v1.8.3 # Use a specific tag or commit hash
+)
+
+# Disable benchmark's own tests which require Google Test
+# since we are already finding/managing Google Test separately.
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(googletest_benchmark)
 
 # Find clang-format and clang-tidy
 find_program(CLANG_FORMAT "clang-format")

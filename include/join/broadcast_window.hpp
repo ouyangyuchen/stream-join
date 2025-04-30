@@ -47,11 +47,7 @@ class BroadcastWindow {
     }
   }
 
-  ~BroadcastWindow() {
-    if (thread_.joinable()) {
-      thread_.join();
-    }
-  };
+  ~BroadcastWindow() = default;
 
   BroadcastWindow(const BroadcastWindow &) = delete;
   auto operator=(const BroadcastWindow &) -> BroadcastWindow & = delete;
@@ -69,19 +65,7 @@ class BroadcastWindow {
     if (diff < 0) {
       throw std::invalid_argument("diff must be greater than or equal to 0");
     }
-    if (is_running_) {
-      throw std::runtime_error("BroadcastWindow is already running");
-    }
-    is_running_ = true;
-
-    thread_ = std::thread([this, diff]() {
-      try {
-        WorkRoutine(diff);
-      } catch (const std::exception &e) {
-        std::cerr << "Error in BroadcastWindow[" << this->id_ << "]: " << e.what() << std::endl;
-      }
-    });
-    // thread_.detach();
+    WorkRoutine(diff);
   };
 
  private:
@@ -154,9 +138,6 @@ class BroadcastWindow {
 
   ChannelPointer<KeyType, ValueType> input_chan_;  // input channel for the tuples/events
 
-  bool is_running_ = false;  // flag to indicate if the window is running
-  std::thread thread_;       // working thread for the broadcast window
-
   std::ostream &os_;  // output stream for logging/debugging
 
   // debug:
@@ -196,16 +177,7 @@ class BroadcastJoiner {
     }
   }
 
-  ~BroadcastJoiner() {
-    for (size_t i = 0; i < num_workers_; ++i) {
-      if (workers_[i].joinable()) {
-        workers_[i].join();
-      }
-    }
-    if (master_thread_.joinable()) {
-      master_thread_.join();
-    }
-  }
+  ~BroadcastJoiner() {}
 
   BroadcastJoiner(const BroadcastJoiner &) = delete;
   auto operator=(const BroadcastJoiner &) -> BroadcastJoiner & = delete;
@@ -223,6 +195,14 @@ class BroadcastJoiner {
     }
 
     master_thread_ = std::thread([this]() { ProducerRoutine(); });
+    for (size_t i = 0; i < num_workers_; ++i) {
+      if (workers_[i].joinable()) {
+        workers_[i].join();
+      }
+    }
+    if (master_thread_.joinable()) {
+      master_thread_.join();
+    }
   }
 
  private:

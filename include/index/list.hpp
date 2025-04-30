@@ -29,12 +29,18 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
   auto Empty() const -> bool override;
 
+  const static std::string Name;
+
  private:
   std::deque<TupleType<KeyType, ValueType>> index_;  // list to store tuples in the arrival order
   std::set<KeyType> key_set_;                        // set to store keys for duplication checking
 };
 
 }  // namespace stream
+
+// Definition of static member
+template <typename KeyType, typename ValueType>
+const std::string stream::ListIndex<KeyType, ValueType>::Name = "ListIndex";
 
 // Implementation of ListIndex methods
 
