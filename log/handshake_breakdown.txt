@@ -1,0 +1,167 @@
+[==========] Running 11 tests from 3 test suites.
+[----------] Global test environment set-up.
+[----------] 4 tests from IndexTest
+[ RUN      ] IndexTest.ListIndexInsertPop
+[       OK ] IndexTest.ListIndexInsertPop (0 ms)
+[ RUN      ] IndexTest.ListIndexRangeSearch
+[       OK ] IndexTest.ListIndexRangeSearch (0 ms)
+[ RUN      ] IndexTest.BPlusTreeIndexInsertPop
+[       OK ] IndexTest.BPlusTreeIndexInsertPop (0 ms)
+[ RUN      ] IndexTest.BPlusTreeIndexRangeSearch
+[       OK ] IndexTest.BPlusTreeIndexRangeSearch (0 ms)
+[----------] 4 tests from IndexTest (0 ms total)
+
+[----------] 4 tests from StreamTest
+[ RUN      ] StreamTest.RandomStreamBasic
+[       OK ] StreamTest.RandomStreamBasic (0 ms)
+[ RUN      ] StreamTest.TPCStreamBasic
+[       OK ] StreamTest.TPCStreamBasic (0 ms)
+[ RUN      ] StreamTest.TupleReader2Streams
+[       OK ] StreamTest.TupleReader2Streams (0 ms)
+[ RUN      ] StreamTest.TupleReaderSingleStream
+[       OK ] StreamTest.TupleReaderSingleStream (0 ms)
+[----------] 4 tests from StreamTest (0 ms total)
+
+[----------] 3 tests from WindowTest
+[ RUN      ] WindowTest.BroadcastWindowBasic
+[2025-05-01 16:19:34.570] [info] Window 0: Join count: 8
+[       OK ] WindowTest.BroadcastWindowBasic (1 ms)
+[ RUN      ] WindowTest.BroadcastJoinerBasic
+[2025-05-01 16:19:35.094] [info] Window 4: Join count: 836759
+[2025-05-01 16:19:35.094] [info] Window 3: Join count: 836759
+[2025-05-01 16:19:35.094] [info] Window 0: Join count: 836756
+[2025-05-01 16:19:35.094] [info] Window 2: Join count: 836758
+[2025-05-01 16:19:35.094] [info] Window 5: Join count: 836758
+[2025-05-01 16:19:35.094] [info] Window 6: Join count: 836757
+[2025-05-01 16:19:35.094] [info] Window 7: Join count: 836756
+[2025-05-01 16:19:35.094] [info] Window 1: Join count: 836757
+[       OK ] WindowTest.BroadcastJoinerBasic (524 ms)
+[ RUN      ] WindowTest.HandshakeJoiner
+[2025-05-01 16:19:38.470] [info] Master closes r input channel
+[2025-05-01 16:19:38.470] [info] Master closes s input channel
+[2025-05-01 16:19:40.166] [info] Window 7 closes left channel
+[2025-05-01 16:19:40.378] [info] Window 6 closes left channel
+[2025-05-01 16:19:40.417] [info] Window 5 closes left channel
+[2025-05-01 16:19:40.424] [info] Window 4 closes left channel
+[2025-05-01 16:19:40.426] [info] Window 3 closes left channel
+[2025-05-01 16:19:40.427] [info] Window 2 closes left channel
+[2025-05-01 16:19:40.444] [info] Window 1 closes left channel
+[2025-05-01 16:19:40.444] [info] Window 1 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 0 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 2 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 0 join count: 0
+[2025-05-01 16:19:40.444] [info] Window 0 index r size: 50, index s size: 17
+[2025-05-01 16:19:40.444] [info] Window 2 join count: 0
+[2025-05-01 16:19:40.444] [info] Window 2 index r size: 50, index s size: 36
+[2025-05-01 16:19:40.444] [info] Window 1 join count: 0
+[2025-05-01 16:19:40.444] [info] Window 1 index r size: 50, index s size: 55
+[2025-05-01 16:19:40.444] [info] Window 3 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 3 join count: 0
+[2025-05-01 16:19:40.444] [info] Window 3 index r size: 50, index s size: 46
+[2025-05-01 16:19:40.444] [info] Window 6 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 5 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 5 join count: 33842
+[2025-05-01 16:19:40.444] [info] Window 5 index r size: 50, index s size: 59
+[2025-05-01 16:19:40.444] [info] Window 6 join count: 26832
+[2025-05-01 16:19:40.445] [info] Window 6 index r size: 198, index s size: 316
+[2025-05-01 16:19:40.444] [info] Window 4 closes right channel
+[2025-05-01 16:19:40.444] [info] Window 7 join count: 6632302
+[2025-05-01 16:19:40.445] [info] Window 7 index r size: 50, index s size: 5398
+[2025-05-01 16:19:40.445] [info] Window 4 join count: 1084
+[2025-05-01 16:19:40.445] [info] Window 4 index r size: 50, index s size: 54
+--- Recorded Durations ---
+Handshake: Loop [4]: 5349 ms
+Handshake: Loop [5]: 5349 ms
+Handshake: Loop [6]: 5349 ms
+Handshake: Loop [7]: 5349 ms
+Handshake: PopOldest I_s [0]: 12 ms
+Handshake: Insert I_s [0]: 13 ms
+Handshake: RangeSearch I_r [0]: 4 ms
+Handshake: PopOldest I_s [2]: 14 ms
+Handshake: ProcessRight [1]: 300 ms
+Handshake: Insert I_s [1]: 14 ms
+Handshake: RangeSearch I_r [1]: 4 ms
+Handshake: Insert I_s [2]: 13 ms
+Handshake: RangeSearch I_r [2]: 4 ms
+Handshake: Insert I_s [3]: 13 ms
+Handshake: PopOldest I_r [7]: 15 ms
+Handshake: Insert I_r [7]: 12 ms
+Handshake: RangeSearch I_s [7]: 1305 ms
+Handshake: ProcessRight [2]: 251 ms
+Handshake: PopOldest I_s [5]: 15 ms
+Handshake: PopOldest I_r [5]: 18 ms
+Handshake: RangeSearch I_s [5]: 14 ms
+Handshake: PopOldest I_r [4]: 18 ms
+Handshake: ProcessLeft [3]: 433 ms
+Handshake: PopOldest I_r [2]: 18 ms
+Handshake: RangeSearch I_s [2]: 4 ms
+Handshake: PopOldest I_s [1]: 16 ms
+Handshake: Insert I_r [6]: 19 ms
+Handshake: PopOldest I_r [1]: 18 ms
+Handshake: FlushPendings [4]: 190 ms
+Handshake: ProcessLeft [6]: 448 ms
+Handshake: RangeSearch I_r [3]: 4 ms
+Handshake: PopOldest I_s [6]: 19 ms
+Handshake: Loop [1]: 5349 ms
+Handshake: PopOldest I_s [7]: 18 ms
+Handshake: Insert I_r [5]: 18 ms
+Handshake: ProcessLeft [1]: 442 ms
+Handshake: Insert I_r [1]: 19 ms
+Handshake: ProcessRight [6]: 426 ms
+Handshake: Loop [3]: 5349 ms
+Handshake: Loop [2]: 5349 ms
+Handshake: Insert I_r [2]: 19 ms
+Handshake: Insert I_s [6]: 16 ms
+Handshake: Loop [0]: 5349 ms
+Handshake: Insert I_s [4]: 14 ms
+Handshake: Insert I_r [3]: 18 ms
+Handshake: FlushPendings [7]: 15 ms
+Handshake: FlushPendings [5]: 188 ms
+Handshake: FlushPendings [0]: 195 ms
+Handshake: FlushPendings [6]: 201 ms
+Handshake: ProcessRight [4]: 262 ms
+Handshake: FlushPendings [3]: 193 ms
+Handshake: FlushPendings [1]: 192 ms
+Handshake: PopOldest I_r [3]: 18 ms
+Handshake: ProcessRight [7]: 288 ms
+Handshake: ProcessRight [3]: 256 ms
+Handshake: ForwardTuples [0]: 162 ms
+Handshake: ForwardTuples [5]: 38 ms
+Handshake: PopOldest I_s [3]: 14 ms
+Handshake: ProcessLeft [5]: 448 ms
+Handshake: RangeSearch I_s [1]: 3 ms
+Handshake: ProcessRight [0]: 250 ms
+Handshake: ForwardTuples [4]: 39 ms
+Handshake: Insert I_r [4]: 19 ms
+Handshake: RangeSearch I_s [4]: 6 ms
+Handshake: ForwardTuples [6]: 84 ms
+Handshake: ProcessLeft [2]: 543 ms
+Handshake: PopOldest I_r [0]: 18 ms
+Handshake: ProcessLeft [4]: 489 ms
+Handshake: FlushPendings [2]: 191 ms
+Handshake: ProcessLeft [0]: 295 ms
+Handshake: RangeSearch I_r [7]: 4 ms
+Handshake: Insert I_s [7]: 19 ms
+Handshake: RangeSearch I_s [0]: 3 ms
+Handshake: PopOldest I_s [4]: 15 ms
+Handshake: Insert I_r [0]: 18 ms
+Handshake: ForwardTuples [2]: 38 ms
+Handshake: RangeSearch I_s [3]: 5 ms
+Handshake: ProcessRight [5]: 256 ms
+Handshake: PopOldest I_r [6]: 24 ms
+Handshake: RangeSearch I_r [6]: 4 ms
+Handshake: ForwardTuples [3]: 37 ms
+Handshake: ForwardTuples [1]: 40 ms
+Handshake: ProcessLeft [7]: 2509 ms
+Handshake: RangeSearch I_s [6]: 12 ms
+Handshake: RangeSearch I_r [4]: 4 ms
+Handshake: ForwardTuples [7]: 192 ms
+Handshake: Insert I_s [5]: 14 ms
+Handshake: RangeSearch I_r [5]: 4 ms
+--------------------------
+[       OK ] WindowTest.HandshakeJoiner (5350 ms)
+[----------] 3 tests from WindowTest (5875 ms total)
+
+[----------] Global test environment tear-down
+[==========] 11 tests from 3 test suites ran. (5876 ms total)
+[  PASSED  ] 11 tests.

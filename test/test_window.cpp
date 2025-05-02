@@ -12,6 +12,7 @@
 #include "msd/channel.hpp"
 #include "stream/sequential_stream.hpp"
 #include "types/types.hpp"
+#include "utils/decorator.hpp"
 
 using stream::TsType;
 using stream::TupleType;
@@ -94,4 +95,6 @@ TEST(WindowTest, HandshakeJoiner) {
       std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
+
+  decorator::printAllDurations();
 }
