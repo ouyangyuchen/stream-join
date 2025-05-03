@@ -3,9 +3,10 @@
 
 #include <spdlog/spdlog.h>
 #include <sys/stat.h>
+#include <atomic>
 #include <cassert>
-#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <deque>
 #include <iostream>
@@ -33,17 +34,22 @@ class HandshakeWindow {
                 "Container must be derived from Index<KeyType, ValueType>");
 
  public:
-  HandshakeWindow(size_t window_size, size_t forward_threshold, ChannelPointer<KeyType, ValueType> input_chan_left,
+  HandshakeWindow(size_t window_size, ChannelPointer<KeyType, ValueType> input_chan_left,
                   ChannelPointer<KeyType, ValueType> input_chan_right,
                   ChannelPointer<KeyType, ValueType> output_left_chan,
-                  ChannelPointer<KeyType, ValueType> output_right_chan, int32_t id = -1, std::ostream &os = std::cout)
+                  ChannelPointer<KeyType, ValueType> output_right_chan, std::atomic_uint64_t *size_r,
+                  std::atomic_uint64_t *size_s, std::atomic_uint64_t *size_r_right, std::atomic_uint64_t *size_s_left,
+                  int32_t id = -1, std::ostream &os = std::cout)
       : window_size_r_(window_size),
         window_size_s_(window_size),
-        forward_threshold_(forward_threshold),
         output_left_chan_(output_left_chan),
         output_right_chan_(output_right_chan),
         input_left_chan_(input_chan_left),
         input_right_chan_(input_chan_right),
+        size_r_(size_r),
+        size_s_(size_s),
+        size_r_right_(size_r_right),
+        size_s_left_(size_s_left),
         index_r_(std::make_unique<Container>()),
         index_s_(std::make_unique<Container>()),
         id_(id),
@@ -75,6 +81,16 @@ class HandshakeWindow {
            (input_right_chan_->closed() && input_right_chan_->empty()) &&
            (output_left_chan_ == nullptr || output_left_chan_->closed()) &&
            (output_right_chan_ == nullptr || output_right_chan_->closed());
+  }
+
+  bool ShouldForwardLeft() {
+    uint64_t left_s_number = size_s_left_ ? size_s_left_->load() : 0;
+    return !index_s_->Empty() && size_s_->load() > left_s_number;
+  }
+
+  bool ShouldForwardRight() {
+    uint64_t right_r_number = size_r_right_ ? size_r_right_->load() : 0;
+    return !index_r_->Empty() && size_r_->load() > right_r_number;
   }
 
   /**
@@ -135,6 +151,7 @@ class HandshakeWindow {
         }
       }
       index_r_->Insert(tuple);
+      size_r_->store(index_r_->Size());
       return join_count;
     }
     if (tuple.ctl_ == TupleFlag::ACK_S) {
@@ -158,6 +175,7 @@ class HandshakeWindow {
       }
 
       index_s_->Insert(tuple);
+      size_s_->store(index_s_->Size());
       auto tuple_ack{tuple};
       tuple_ack.ctl_ = TupleFlag::ACK_S;
       assert(tuple_ack.forwarded_ == false);
@@ -169,7 +187,7 @@ class HandshakeWindow {
   }
 
   void ForwardTuples() {
-    if (index_s_->Size() > forward_threshold_) {
+    if (ShouldForwardLeft()) {
       auto &tuple_head = index_s_->GetOldestRef();
       if (!tuple_head.forwarded_) {
         if (output_left_chan_ == nullptr) {
@@ -183,12 +201,13 @@ class HandshakeWindow {
         }
       }
     }
-    if (index_r_->Size() > forward_threshold_) {
+    if (ShouldForwardRight()) {
       auto &tuple = index_r_->GetOldestRef();  // delete is done by FlushPendings()
       if (!tuple.forwarded_) {
         if (output_right_chan_ == nullptr) {
           // right-most sub-window sends "r" tuple to the null
           index_r_->PopOldest();
+          size_r_->store(index_r_->Size());
         } else {
           SendToRight(tuple);
           // spdlog::debug("Window {} forward: {}", id_, tuple);
@@ -212,7 +231,7 @@ class HandshakeWindow {
         *output_left_chan_ << tuple_sent;
       }
       if (pending_list_left_.empty()) {
-        if ((input_right_chan_->closed() && input_right_chan_->empty()) && index_s_->Size() <= forward_threshold_) {
+        if ((input_right_chan_->closed() && input_right_chan_->empty()) && index_s_->Empty()) {
           output_left_chan_->close();  // no more s tuples to be sent when no s tuples will be received
           spdlog::info("Window {} closes left channel", id_);
         }
@@ -229,6 +248,7 @@ class HandshakeWindow {
         // result completeness: tuple r is deleted from index until its pending tuple is flushed
         if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
           auto tuple_del = index_r_->PopOldest();
+          size_r_->store(index_r_->Size());
           assert(tuple_del.key_ == tuple_sent.key_);
           assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
         }
@@ -236,7 +256,7 @@ class HandshakeWindow {
       }
       if (pending_list_right_.empty()) {
         if ((input_left_chan_->closed() && input_left_chan_->empty()) &&
-            (input_right_chan_->closed() && input_right_chan_->empty()) && (index_r_->Size() <= forward_threshold_)) {
+            (input_right_chan_->closed() && input_right_chan_->empty()) && index_r_->Empty()) {
           output_right_chan_->close();  // no more r tuples or s ack to be sent when no input anymore
           spdlog::info("Window {} closes right channel", id_);
         }
@@ -270,6 +290,7 @@ class HandshakeWindow {
     assert(tuple_s.timestamp_ == tuple.timestamp_);
     assert(tuple_s.value_ == tuple.value_);
     index_s_->PopOldest();
+    size_s_->store(index_s_->Size());
     // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
 
@@ -288,8 +309,11 @@ class HandshakeWindow {
   std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
   const size_t window_size_s_;
 
-  const size_t forward_threshold_;            // threshold for forwarding tuples
   static constexpr size_t FULL_THRESHOLD{3};  // threshold for considering the channel is full
+  std::atomic_uint64_t *size_r_;              // size of index r, used for left window to forward tuples
+  std::atomic_uint64_t *size_s_;              // size of index s, used for right window to forward tuples
+  const std::atomic_uint64_t *size_r_right_;  // size of index r of the left neighbor window, null if left-most
+  const std::atomic_uint64_t *size_s_left_;   // size of index s of the right neighbor window, null if right-most
 
   std::ostream &os_;  // output stream for join results
 
@@ -309,6 +333,8 @@ class HandshakeJoiner {
         window_len_(window_len),
         channel_buffer_size_(channel_buffer_size),
         tuple_reader_(std::move(stream_r), std::move(stream_s)),
+        size_r_(num_workers_),
+        size_s_(num_workers_),
         os_(os) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
@@ -324,14 +350,15 @@ class HandshakeJoiner {
     send_r_chan_ = right_direct_channels[0];
     send_s_chan_ = left_direct_channels[num_workers_ - 1];
 
-    auto forward_threshold = window_len_ / num_workers_ + 1;  // +1 to guarantee the completeness of join results
     for (size_t i = 0; i < num_workers_; ++i) {
       auto left_output_chan = (i == 0) ? nullptr : left_direct_channels[i - 1];
       auto right_output_chan = (i == num_workers_ - 1) ? nullptr : right_direct_channels[i + 1];
       auto left_input_chan = right_direct_channels[i];
       auto right_input_chan = left_direct_channels[i];
-      windows_.emplace_back(window_len_, forward_threshold, left_input_chan, right_input_chan, left_output_chan,
-                            right_output_chan, i, os_);
+      auto *size_r_right = (i == num_workers_ - 1) ? nullptr : &size_r_[i + 1];
+      auto *size_s_left = (i == 0) ? nullptr : &size_s_[i - 1];
+      windows_.emplace_back(window_len_, left_input_chan, right_input_chan, left_output_chan, right_output_chan,
+                            &size_r_[i], &size_s_[i], size_r_right, size_s_left, i, os_);
     }
   }
 
@@ -344,6 +371,8 @@ class HandshakeJoiner {
 
   void Start(KeyType diff) {
     // start the worker threads
+    workers_.clear();
+    workers_.reserve(num_workers_);
     for (size_t i = 0; i < num_workers_; ++i) {
       workers_.emplace_back([this, i, diff]() { windows_[i].Start(diff); });
     }
@@ -382,15 +411,20 @@ class HandshakeJoiner {
   TupleReader<KeyType, ValueType> tuple_reader_;
 
   std::vector<HandshakeWindow<KeyType, ValueType, Container>> windows_;
+  std::vector<std::atomic_uint64_t> size_r_;
+  std::vector<std::atomic_uint64_t> size_s_;
   std::vector<std::thread> workers_;
 
   ChannelPointer<KeyType, ValueType> send_r_chan_;  // send r tuples to the left most sub-window
   ChannelPointer<KeyType, ValueType> send_s_chan_;  // send s tuples to the right most sub-window
+  ChannelPointer<KeyType, ValueType> pop_r_chan_;   // pop r tuples from the right most sub-window
+  ChannelPointer<KeyType, ValueType> pop_s_chan_;   // pop s tuples from the left most sub-window
 
   std::ostream &os_;  // output stream for join results
 
-  const std::chrono::milliseconds wait_after_close_{1000};
-};
+  std::thread right_end_routine_;  // thread for the right end of the joiner
+  std::thread left_end_routine_;   // thread for the left end of the joiner
+};  // namespace stream
 
 }  // namespace stream
 
