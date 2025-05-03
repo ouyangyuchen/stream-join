@@ -83,7 +83,7 @@ TEST(WindowTest, BroadcastJoinerBasic) {
 
 TEST(WindowTest, HandshakeJoiner) {
   // rubbish tuples are used for flushing the valid tuples inside the windows
-  constexpr auto rubbish_tuple_num = TestConfig::HANDSHAKE_WORKERS * (TestConfig::WINDOW_SIZE + 1);
+  constexpr auto rubbish_tuple_num = 0;
   std::unique_ptr<stream::SequentialStream> r =
       std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R, 1, rubbish_tuple_num, -0x1000000000);
   std::unique_ptr<stream::SequentialStream> s =
