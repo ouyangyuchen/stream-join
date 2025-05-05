@@ -94,4 +94,10 @@ TEST(WindowTest, HandshakeJoiner) {
       std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
+
+  std::chrono::milliseconds wait_after_start{3000};
+  std::this_thread::sleep_for(wait_after_start);
+
+  spdlog::info("Stopped the joiner after {} ms timeout", wait_after_start.count());
+  joiner.Stop();
 }
