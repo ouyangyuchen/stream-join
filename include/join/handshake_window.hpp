@@ -56,8 +56,8 @@ class HandshakeWindow {
                   ChannelPointer<KeyType, ValueType> output_left_chan,
                   ChannelPointer<KeyType, ValueType> output_right_chan, std::atomic_uint64_t *size_r,
                   std::atomic_uint64_t *size_s, std::atomic_uint64_t *size_r_right, std::atomic_uint64_t *size_s_left,
-                  const TsType *newest_r_ts, const TsType *newest_s_ts, TsType *oldest_r_ts, TsType *oldest_s_ts,
-                  int32_t id = -1, std::ostream &os = std::cout)
+                  volatile const TsType *newest_r_ts, volatile const TsType *newest_s_ts, volatile TsType *oldest_r_ts,
+                  volatile TsType *oldest_s_ts, int32_t id = -1, std::ostream &os = std::cout)
       : window_size_(window_size),
         output_left_chan_(output_left_chan),
         output_right_chan_(output_right_chan),
@@ -71,7 +71,7 @@ class HandshakeWindow {
         newest_s_ts_(newest_s_ts),
         oldest_r_ts_(oldest_r_ts),
         oldest_s_ts_(oldest_s_ts),
-        FORWARD_END_TORELANCE(window_size_ / num_workers),
+        FORWARD_END_TORELANCE(window_size_ / num_workers / 2),
         index_r_(std::make_unique<Container>()),
         index_s_(std::make_unique<Container>()),
         id_(id),
@@ -112,7 +112,9 @@ class HandshakeWindow {
     if (size_s_left_ == nullptr) {
       // the left-most sub-window sends the oldest s tuple to the null if it is expired
       const auto &tuple_oldest = index_s_->GetOldestRef();
-      return !TimeStampMatched(*newest_r_ts_, tuple_oldest.timestamp_, window_size_ + FORWARD_END_TORELANCE);
+      auto newest_r_ts = *newest_r_ts_;
+      return tuple_oldest.timestamp_ <= newest_r_ts &&
+             !TimeStampMatched(tuple_oldest.timestamp_, newest_r_ts, window_size_ + FORWARD_END_TORELANCE);
     }
     return size_s_->load() > size_s_left_->load();
   }
@@ -124,7 +126,9 @@ class HandshakeWindow {
     if (size_r_right_ == nullptr) {
       // the right-most sub-window sends the oldest r tuple to the null if it is expired
       const auto &tuple_oldest = index_r_->GetOldestRef();
-      return !TimeStampMatched(tuple_oldest.timestamp_, *newest_s_ts_, window_size_ + FORWARD_END_TORELANCE);
+      auto newest_s_ts = *newest_s_ts_;
+      return tuple_oldest.timestamp_ <= newest_s_ts &&
+             !TimeStampMatched(tuple_oldest.timestamp_, newest_s_ts, window_size_ + FORWARD_END_TORELANCE);
     }
     return size_r_->load() > size_r_right_->load();
   }
@@ -169,7 +173,7 @@ class HandshakeWindow {
   /**
    * @brief Check if the timestamps of two tuples satisfy the window limit.
    */
-  inline auto TimeStampMatched(const TsType &r_ts, const TsType &s_ts, size_t window_size) -> bool {
+  inline auto TimeStampMatched(volatile const TsType &r_ts, volatile const TsType &s_ts, size_t window_size) -> bool {
     if (r_ts > s_ts) {
       return r_ts <= s_ts + window_size;
     }
@@ -226,33 +230,15 @@ class HandshakeWindow {
     if (ShouldForwardLeft()) {
       auto &tuple_head = index_s_->GetOldestRef();
       if (!tuple_head.forwarded_) {
-        if (output_left_chan_ == nullptr) {
-          // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
-          // therefore, the left-most one directly processes the ack as if it is received
-          tuple_head.forwarded_ = true;  // optional: for assertion check
-          TsType oldest_s_ts = tuple_head.timestamp_;
-          assert(!TimeStampMatched(*newest_r_ts_, tuple_head.timestamp_, window_size_));
-          ProcessAck(tuple_head);
-          *oldest_s_ts_ = oldest_s_ts;
-        } else {
-          SendToLeft(tuple_head);
-          // spdlog::debug("Window {} forward: {}", id_, tuple);
-        }
+        SendToLeft(tuple_head);
+        // spdlog::debug("Window {} forward: {}", id_, tuple);
       }
     }
     if (ShouldForwardRight()) {
       auto &tuple = index_r_->GetOldestRef();  // delete is done by FlushPendings()
       if (!tuple.forwarded_) {
-        if (output_right_chan_ == nullptr) {
-          // right-most sub-window sends "r" tuple to the null
-          auto tuple_del = index_r_->PopOldest();
-          size_r_->store(index_r_->Size());
-          assert(!TimeStampMatched(tuple_del.timestamp_, *newest_s_ts_, window_size_));
-          *oldest_r_ts_ = tuple_del.timestamp_;
-        } else {
-          SendToRight(tuple);
-          // spdlog::debug("Window {} forward: {}", id_, tuple);
-        }
+        SendToRight(tuple);
+        // spdlog::debug("Window {} forward: {}", id_, tuple);
       }
     }
   }
@@ -274,9 +260,21 @@ class HandshakeWindow {
       if (pending_list_left_.empty()) {
         if ((input_right_chan_->closed() && input_right_chan_->empty()) && index_s_->Empty()) {
           output_left_chan_->close();  // no more s tuples to be sent when no s tuples will be received
-          spdlog::info("Window {} closes left channel", id_);
+          spdlog::debug("Window {} closes left channel", id_);
         }
       }
+    } else if (output_left_chan_ == nullptr) {
+      // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
+      // therefore, the left-most one directly processes the ack as if it is received
+      for (auto &tuple_del : pending_list_left_) {
+        tuple_del.forwarded_ = true;  // for assertion check
+        TsType oldest_s_ts = tuple_del.timestamp_;
+        assert(tuple_del.timestamp_ <= *newest_s_ts_);
+        assert(!TimeStampMatched(*newest_r_ts_, tuple_del.timestamp_, window_size_));
+        ProcessAck(tuple_del);
+        *oldest_s_ts_ = oldest_s_ts;
+      }
+      pending_list_left_.clear();
     }
     if (output_right_chan_ && !output_right_chan_->closed()) {
       while (!pending_list_right_.empty()) {
@@ -299,28 +297,37 @@ class HandshakeWindow {
         if ((input_left_chan_->closed() && input_left_chan_->empty()) &&
             (input_right_chan_->closed() && input_right_chan_->empty()) && index_r_->Empty()) {
           output_right_chan_->close();  // no more r tuples or s ack to be sent when no input anymore
-          spdlog::info("Window {} closes right channel", id_);
+          spdlog::debug("Window {} closes right channel", id_);
         }
       }
+    } else if (output_right_chan_ == nullptr) {
+      // right-most sub-window sends "r" tuple to the null: directly pop the oldest tuple
+      for (const auto &tuple : pending_list_right_) {
+        if (tuple.ctl_ == TupleFlag::ACK_S) {
+          continue;
+        }
+        auto tuple_del = index_r_->PopOldest();
+        size_r_->store(index_r_->Size());
+        assert(tuple_del.timestamp_ <= *newest_r_ts_);
+        assert(!TimeStampMatched(tuple.timestamp_, *newest_s_ts_, window_size_));
+        *oldest_r_ts_ = tuple_del.timestamp_;
+      }
+      pending_list_right_.clear();
     }
   }
 
   auto SendToLeft(TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::INPUT_S);
     assert(tuple.forwarded_ == false);
-    if (output_left_chan_) {
-      pending_list_left_.emplace_back(tuple);
-      tuple.forwarded_ = true;
-    }
+    pending_list_left_.emplace_back(tuple);
+    tuple.forwarded_ = true;
   }
 
   auto SendToRight(TupleType<KeyType, ValueType> &tuple) -> void {
     assert(tuple.ctl_ == TupleFlag::ACK_S || tuple.ctl_ == TupleFlag::INPUT_R);
     assert(tuple.forwarded_ == false);
-    if (output_right_chan_) {
-      pending_list_right_.emplace_back(tuple);
-      tuple.forwarded_ = true;
-    }
+    pending_list_right_.emplace_back(tuple);
+    tuple.forwarded_ = true;
   }
 
   auto ProcessAck(const TupleType<KeyType, ValueType> &tuple) -> void {
@@ -349,16 +356,17 @@ class HandshakeWindow {
   const size_t window_size_;
 
   // forwarding tuple condition
-  const size_t FORWARD_END_TORELANCE;         // larger window limit when popping expired tuples in the end
-  std::atomic_uint64_t *size_r_;              // size of index r, used for left window to forward tuples
-  std::atomic_uint64_t *size_s_;              // size of index s, used for right window to forward tuples
-  const std::atomic_uint64_t *size_r_right_;  // size of index r of the left neighbor window, null if left-most
-  const std::atomic_uint64_t *size_s_left_;   // size of index s of the right neighbor window, null if right-most
+  const size_t FORWARD_END_TORELANCE;                  // larger window limit when popping expired tuples in the end
+  std::atomic_uint64_t *size_r_;                       // size of index r, used for left window to forward tuples
+  std::atomic_uint64_t *size_s_;                       // size of index s, used for right window to forward tuples
+  volatile const std::atomic_uint64_t *size_r_right_;  // size of index r of the left neighbor window, null if left-most
+  volatile const std::atomic_uint64_t
+      *size_s_left_;  // size of index s of the right neighbor window, null if right-most
   // forwarding tuples at the ends
-  const TsType *newest_r_ts_;  // timestamp of the newest tuple in the whole windows
-  const TsType *newest_s_ts_;  // timestamp of the newest tuple in the whole windows
-  TsType *oldest_r_ts_;        // timestamp of the oldest tuple popped from the whole windows
-  TsType *oldest_s_ts_;        // timestamp of the oldest tuple popped from the whole windows
+  volatile const TsType *newest_r_ts_;  // timestamp of the newest tuple in the whole windows
+  volatile const TsType *newest_s_ts_;  // timestamp of the newest tuple in the whole windows
+  volatile TsType *oldest_r_ts_;        // timestamp of the oldest tuple popped from the whole windows
+  volatile TsType *oldest_s_ts_;        // timestamp of the oldest tuple popped from the whole windows
 
   std::ostream &os_;  // output stream for join results
 
@@ -380,7 +388,7 @@ class HandshakeJoiner {
         tuple_reader_(std::move(stream_r), std::move(stream_s)),
         size_r_(num_workers_),
         size_s_(num_workers_),
-        PUSH_TUPLE_TOLERANCE(window_len_ / num_workers_ + 3),  // +n guarantee tuple will be pushed
+        PUSH_TUPLE_TOLERANCE(window_len_ / num_workers_ / 2 + 3),  // +n guarantee tuple will be pushed
         os_(os) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
@@ -442,24 +450,24 @@ class HandshakeJoiner {
         break;
       }
       if (tuple_opt->ctl_ == TupleFlag::INPUT_R) {
-        newest_r_ts_ = tuple_opt->timestamp_;
         while (!ShouldPushR()) {
           // wait for the right end to pop the expired tuples and update the oldest timestamp
         }
         (*send_r_chan_) << *tuple_opt;
+        newest_r_ts_ = tuple_opt->timestamp_;
       } else if (tuple_opt->ctl_ == TupleFlag::INPUT_S) {
-        newest_s_ts_ = tuple_opt->timestamp_;
         while (!ShouldPushS()) {
           // wait for the left end to pop the expired tuples and update the oldest timestamp
         }
         (*send_s_chan_) << *tuple_opt;
+        newest_s_ts_ = tuple_opt->timestamp_;
       } else {
         throw std::runtime_error("Invalid tuple control flag");
       }
     }
-    spdlog::info("Master closes r input channel");
+    spdlog::debug("Master closes r input channel");
     send_r_chan_->close();
-    spdlog::info("Master closes s input channel");
+    spdlog::debug("Master closes s input channel");
     send_s_chan_->close();
 
     // set timestamp to max value to flush all remaining tuples in the windows
@@ -493,10 +501,10 @@ class HandshakeJoiner {
   ChannelPointer<KeyType, ValueType> pop_r_chan_;   // pop r tuples from the right most sub-window
   ChannelPointer<KeyType, ValueType> pop_s_chan_;   // pop s tuples from the left most sub-window
 
-  TsType newest_r_ts_{0};             // timestamp of the newest r tuple in the whole windows
-  TsType newest_s_ts_{0};             // timestamp of the newest s tuple in the whole windows
-  TsType oldest_r_ts_{0};             // timestamp of the oldest r tuple popped from the whole windows
-  TsType oldest_s_ts_{0};             // timestamp of the oldest s tuple popped from the whole windows
+  volatile TsType newest_r_ts_{0};    // timestamp of the newest r tuple in the whole windows
+  volatile TsType newest_s_ts_{0};    // timestamp of the newest s tuple in the whole windows
+  volatile TsType oldest_r_ts_{0};    // timestamp of the oldest r tuple popped from the whole windows
+  volatile TsType oldest_s_ts_{0};    // timestamp of the oldest s tuple popped from the whole windows
   const TsType PUSH_TUPLE_TOLERANCE;  // timestamp tolerance for pushing tuples to the windows
 
   std::ostream &os_;  // output stream for join results
