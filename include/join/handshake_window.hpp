@@ -14,10 +14,18 @@
 #include <thread>
 #include <vector>
 #include "index/index.hpp"
+#include "msd/channel.hpp"
 #include "stream/stream.hpp"
 #include "types/types.hpp"
 
 namespace stream {
+
+struct worker_result {
+  size_t iteration{0};
+  size_t join_count{0};
+  size_t index_r_count{0};
+  size_t index_s_count{0};
+};
 
 /**
  * @brief HandshakeWindow class.
@@ -28,10 +36,16 @@ namespace stream {
  * corresponding ack messages are received, which are sent by the left sub-window after it has
  * received the tuple s. The join results are sent to the output stream.
  */
+
+// Forward declaration
+template <typename KeyType, typename ValueType, typename Container>
+class HandshakeJoiner;
+
 template <typename KeyType, typename ValueType, typename Container>
 class HandshakeWindow {
   static_assert(std::is_base_of_v<WindowIndex<KeyType, ValueType>, Container>,
                 "Container must be derived from Index<KeyType, ValueType>");
+  friend class HandshakeJoiner<KeyType, ValueType, Container>;
 
  public:
   /**
@@ -57,7 +71,7 @@ class HandshakeWindow {
                   ChannelPointer<KeyType, ValueType> output_right_chan, std::atomic_uint64_t *size_r,
                   std::atomic_uint64_t *size_s, std::atomic_uint64_t *size_r_right, std::atomic_uint64_t *size_s_left,
                   volatile const TsType *newest_r_ts, volatile const TsType *newest_s_ts, volatile TsType *oldest_r_ts,
-                  volatile TsType *oldest_s_ts, int32_t id = -1, std::ostream &os = std::cout)
+                  volatile TsType *oldest_s_ts, worker_result &result, int32_t id = -1, std::ostream &os = std::cout)
       : window_size_(window_size),
         output_left_chan_(output_left_chan),
         output_right_chan_(output_right_chan),
@@ -72,6 +86,7 @@ class HandshakeWindow {
         oldest_r_ts_(oldest_r_ts),
         oldest_s_ts_(oldest_s_ts),
         FORWARD_END_TORELANCE(window_size_ / num_workers / 2),
+        result_(result),
         index_r_(std::make_unique<Container>()),
         index_s_(std::make_unique<Container>()),
         id_(id),
@@ -91,11 +106,7 @@ class HandshakeWindow {
    * It also handles the forwarding of tuples to the left and right channels based on the
    * forward threshold.
    */
-  void Start(KeyType diff) {
-    std::thread process_thread([this, diff]() { ProcessRoutine(diff); }  // process tuples in the input channel
-    );
-    process_thread.join();
-  }
+  void Start(KeyType diff) { ProcessRoutine(diff); }
 
  private:
   inline bool ShouldTerminate() {
@@ -137,37 +148,28 @@ class HandshakeWindow {
    * @brief Process tuples in the input channel and forward them to left/right correspondingly.
    */
   void ProcessRoutine(KeyType diff) {
-    size_t iteration{0};
-    size_t join_count{0};
-    size_t index_r_count_avg{0};  // average r tuple workload
-    size_t index_s_count_avg{0};  // average s tuple workload
-
     while (!ShouldTerminate()) {
-      ++iteration;
+      size_t join_count = 0;
       if (!input_left_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_left_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S);
-        join_count += ProcessLeft(tuple, diff);
+        result_.join_count += ProcessLeft(tuple, diff);
       }
       if (!input_right_chan_->empty()) {  // process tuple non-blockingly
         TupleType<KeyType, ValueType> tuple;
         *input_right_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_S);
-        join_count += ProcessRight(tuple, diff);
+        result_.join_count += ProcessRight(tuple, diff);
       }
 
       ForwardTuples();
       FlushPendings();
 
-      index_r_count_avg += index_r_->Size();
-      index_s_count_avg += index_s_->Size();
+      result_.iteration++;
+      result_.index_r_count += index_r_->Size();
+      result_.index_s_count += index_s_->Size();
     }
-
-    index_r_count_avg /= iteration;
-    index_s_count_avg /= iteration;
-    spdlog::info("Window {} join count: {}", id_, join_count);
-    spdlog::info("Window {} index r size: {}, index s size: {}", id_, index_r_count_avg, index_s_count_avg);
   }
 
   /**
@@ -248,7 +250,7 @@ class HandshakeWindow {
    * almost full.
    */
   void FlushPendings() {
-    if (output_left_chan_ && !output_left_chan_->closed()) {
+    if (output_left_chan_) {
       while (!pending_list_left_.empty()) {
         if (output_left_chan_->full(FULL_THRESHOLD)) {
           break;  // avoid full the channel when sending the tuple concurrently
@@ -263,7 +265,7 @@ class HandshakeWindow {
           spdlog::debug("Window {} closes left channel", id_);
         }
       }
-    } else if (output_left_chan_ == nullptr) {
+    } else {
       // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
       // therefore, the left-most one directly processes the ack as if it is received
       for (auto &tuple_del : pending_list_left_) {
@@ -276,7 +278,7 @@ class HandshakeWindow {
       }
       pending_list_left_.clear();
     }
-    if (output_right_chan_ && !output_right_chan_->closed()) {
+    if (output_right_chan_) {
       while (!pending_list_right_.empty()) {
         if (output_right_chan_->full(FULL_THRESHOLD)) {
           break;
@@ -300,7 +302,7 @@ class HandshakeWindow {
           spdlog::debug("Window {} closes right channel", id_);
         }
       }
-    } else if (output_right_chan_ == nullptr) {
+    } else {
       // right-most sub-window sends "r" tuple to the null: directly pop the oldest tuple
       for (const auto &tuple : pending_list_right_) {
         if (tuple.ctl_ == TupleFlag::ACK_S) {
@@ -368,7 +370,8 @@ class HandshakeWindow {
   volatile TsType *oldest_r_ts_;        // timestamp of the oldest tuple popped from the whole windows
   volatile TsType *oldest_s_ts_;        // timestamp of the oldest tuple popped from the whole windows
 
-  std::ostream &os_;  // output stream for join results
+  std::ostream &os_;       // output stream for join results
+  worker_result &result_;  // used in printing the join aggregation results after stopping
 
   int32_t id_;  // id of the window (debugging purpose)
 };
@@ -389,6 +392,7 @@ class HandshakeJoiner {
         size_r_(num_workers_),
         size_s_(num_workers_),
         PUSH_TUPLE_TOLERANCE(window_len_ / num_workers_ / 2 + 3),  // +n guarantee tuple will be pushed
+        worker_results_(num_workers_),
         os_(os) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
@@ -413,11 +417,11 @@ class HandshakeJoiner {
       auto *size_s_left = (i == 0) ? nullptr : &size_s_[i - 1];
       windows_.emplace_back(window_len_, num_workers_, left_input_chan, right_input_chan, left_output_chan,
                             right_output_chan, &size_r_[i], &size_s_[i], size_r_right, size_s_left, &newest_r_ts_,
-                            &newest_s_ts_, &oldest_r_ts_, &oldest_s_ts_, i, os_);
+                            &newest_s_ts_, &oldest_r_ts_, &oldest_s_ts_, worker_results_[i], i, os_);
     }
   }
 
-  ~HandshakeJoiner() = default;
+  ~HandshakeJoiner() { Stop(); }
 
   HandshakeJoiner(const HandshakeJoiner &) = delete;
   auto operator=(const HandshakeJoiner &) -> HandshakeJoiner & = delete;
@@ -429,17 +433,55 @@ class HandshakeJoiner {
     workers_.clear();
     workers_.reserve(num_workers_);
     for (size_t i = 0; i < num_workers_; ++i) {
-      workers_.emplace_back([this, i, diff]() { windows_[i].Start(diff); });
+      workers_.emplace_back([this, i, diff]() {
+        try {
+          windows_[i].Start(diff);
+        } catch (const msd::closed_channel &e) {
+          return;
+        } catch (const std::exception &e) {
+          spdlog::error("Window {} exception: {}", i, e.what());
+        } catch (...) {
+          spdlog::error("Window {} unknown exception", i);
+        }
+      });
     }
 
-    // start the producer thread:
-    Producer();
+    producer_thread_ = std::thread([this]() {
+      try {
+        Producer();
+      } catch (const msd::closed_channel &e) {
+        spdlog::warn("Producer is terminated before pushing all tuples");
+        return;
+      } catch (const std::exception &e) {
+        spdlog::error("Producer exception: {}", e.what());
+      } catch (...) {
+        spdlog::error("Producer unknown exception");
+      }
+    });
+  }
 
+  void Stop() {
+    if (stopped) {
+      return;
+    }
+    stopped = true;
+
+    // close all the channels
+    for (size_t i = 0; i < num_workers_; ++i) {
+      windows_[i].input_left_chan_->close();
+      windows_[i].input_right_chan_->close();
+    }
+
+    if (producer_thread_.joinable()) {
+      producer_thread_.join();
+    }
     for (size_t i = 0; i < num_workers_; ++i) {
       if (workers_[i].joinable()) {
         workers_[i].join();
       }
     }
+
+    PrintResults();
   }
 
  private:
@@ -485,16 +527,28 @@ class HandshakeJoiner {
     return newest_s_ts_ <= upper_bound;
   }
 
+  void PrintResults() const {
+    for (size_t i = 0; i < num_workers_; ++i) {
+      spdlog::info("Window {} join count: {}", i, worker_results_[i].join_count);
+      auto index_r_count_avg = worker_results_[i].index_r_count / worker_results_[i].iteration;
+      auto index_s_count_avg = worker_results_[i].index_s_count / worker_results_[i].iteration;
+      spdlog::info("Window {} index r size: {}, index s size: {}", i, index_r_count_avg, index_s_count_avg);
+    }
+  }
+
+  bool stopped{false};
   size_t num_workers_;
   size_t window_len_;
   size_t channel_buffer_size_;
 
   TupleReader<KeyType, ValueType> tuple_reader_;
+  std::thread producer_thread_;
 
   std::vector<HandshakeWindow<KeyType, ValueType, Container>> windows_;
   std::vector<std::atomic_uint64_t> size_r_;
   std::vector<std::atomic_uint64_t> size_s_;
   std::vector<std::thread> workers_;
+  std::vector<worker_result> worker_results_;
 
   ChannelPointer<KeyType, ValueType> send_r_chan_;  // send r tuples to the left most sub-window
   ChannelPointer<KeyType, ValueType> send_s_chan_;  // send s tuples to the right most sub-window
