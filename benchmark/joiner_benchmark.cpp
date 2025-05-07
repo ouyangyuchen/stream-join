@@ -71,12 +71,9 @@ static void BM_HandshakeJoiner(benchmark::State &state) {
 
     joiner.Start(DIFF);
 
-    state.PauseTiming();  // Pause again after join finishes
-    // No explicit teardown needed here as unique_ptrs handle streams
-    state.ResumeTiming();  // Resume briefly for loop overhead accounting
+    state.SetItemsProcessed(total_tuples);
   }
 
-  state.SetItemsProcessed(state.iterations() * total_tuples);
   state.SetComplexityN(num_workers);  // Optional: Mark complexity related to workers
   state.SetLabel(IndexType::Name + "/" + std::to_string(num_workers) + "w");
 }
@@ -104,11 +101,9 @@ static void BM_BroadcastJoiner(benchmark::State &state) {
 
     joiner.Start(DIFF);
 
-    state.PauseTiming();
-    state.ResumeTiming();
+    state.SetItemsProcessed(total_tuples);
   }
 
-  state.SetItemsProcessed(state.iterations() * total_tuples);
   state.SetComplexityN(num_workers);
   state.SetLabel(IndexType::Name + "/" + std::to_string(num_workers) + "w");
 }

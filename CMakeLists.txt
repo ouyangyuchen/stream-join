@@ -36,6 +36,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Add executable target
 add_executable(${PROJECT_NAME}
 src/main.cpp
+src/decorator.cpp
 )
 
 # Include directories
