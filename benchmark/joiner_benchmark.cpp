@@ -98,8 +98,8 @@ static void BM_BroadcastJoiner(benchmark::State &state) {
     // auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
 
     // Note: BroadcastJoiner template takes StreamType as well
-    stream::BroadcastJoiner<KeyType, ValueType, IndexType, StreamType> joiner(
-        num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE, std::move(r), std::move(s), discard_stream);
+    stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
+                                                                  std::move(r), std::move(s), discard_stream);
     state.ResumeTiming();
 
     joiner.Start(DIFF);

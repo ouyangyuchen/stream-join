@@ -454,6 +454,7 @@ class HandshakeJoiner {
           // wait for the right end to pop the expired tuples and update the oldest timestamp
         }
         (*send_r_chan_) << *tuple_opt;
+        spdlog::debug("Master sends r tuple: {}", *tuple_opt);
         newest_r_ts_ = tuple_opt->timestamp_;
       } else if (tuple_opt->ctl_ == TupleFlag::INPUT_S) {
         while (!ShouldPushS()) {
@@ -461,6 +462,7 @@ class HandshakeJoiner {
         }
         (*send_s_chan_) << *tuple_opt;
         newest_s_ts_ = tuple_opt->timestamp_;
+        spdlog::debug("Master sends s tuple: {}", *tuple_opt);
       } else {
         throw std::runtime_error("Invalid tuple control flag");
       }
@@ -475,14 +477,34 @@ class HandshakeJoiner {
     newest_s_ts_ = INT64_MAX;
   }
 
-  inline auto ShouldPushR() -> bool {
+  auto ShouldPushR() -> bool {
+    static size_t failed_times = 0;
     TsType upper_bound = oldest_r_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return newest_r_ts_ <= upper_bound;
+    bool ret = newest_r_ts_ <= upper_bound;
+    if (!ret) {
+      ++failed_times;
+      if (failed_times % FORCED_PUSH_TUPLE_THRESHOLD == 0) {
+        return true;  // push the tuple to the window if it is not pushed for a long time
+      }
+    } else {
+      failed_times = 0;
+    }
+    return ret;
   }
 
-  inline auto ShouldPushS() -> bool {
+  auto ShouldPushS() -> bool {
+    static size_t failed_times = 0;
     TsType upper_bound = oldest_s_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return newest_s_ts_ <= upper_bound;
+    bool ret = newest_s_ts_ <= upper_bound;
+    if (!ret) {
+      ++failed_times;
+      if (failed_times % FORCED_PUSH_TUPLE_THRESHOLD == 0) {
+        return true;  // push the tuple to the window if it is not pushed for a long time
+      }
+    } else {
+      failed_times = 0;
+    }
+    return ret;
   }
 
   size_t num_workers_;
@@ -506,6 +528,7 @@ class HandshakeJoiner {
   volatile TsType oldest_r_ts_{0};    // timestamp of the oldest r tuple popped from the whole windows
   volatile TsType oldest_s_ts_{0};    // timestamp of the oldest s tuple popped from the whole windows
   const TsType PUSH_TUPLE_TOLERANCE;  // timestamp tolerance for pushing tuples to the windows
+  static constexpr size_t FORCED_PUSH_TUPLE_THRESHOLD{1000};  // max failed times for pushing tuples from producer
 
   std::ostream &os_;  // output stream for join results
 

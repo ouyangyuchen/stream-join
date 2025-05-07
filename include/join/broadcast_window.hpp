@@ -159,14 +159,12 @@ class BroadcastWindow {
  * I_r; tuple s is processed oppositely to r but only sent to one subwindow. The join results are
  * sent to the output channel.
  */
-template <typename KeyType, typename ValueType, typename Container, typename StreamType>
+template <typename KeyType, typename ValueType, typename Container>
 class BroadcastJoiner {
-  static_assert(std::is_base_of_v<stream::Stream<KeyType, ValueType>, StreamType>,
-                "StreamType must be derived from msd::stream::Stream");
-
  public:
-  BroadcastJoiner(size_t num_workers, size_t window_size, size_t channel_buffer_size, std::unique_ptr<StreamType> R,
-                  std::unique_ptr<StreamType> S, std::ostream &os = std::cout)
+  BroadcastJoiner(size_t num_workers, size_t window_size, size_t channel_buffer_size,
+                  std::unique_ptr<Stream<KeyType, ValueType>> R, std::unique_ptr<Stream<KeyType, ValueType>> S,
+                  std::ostream &os = std::cout)
       : num_workers_(num_workers),
         channels_(num_workers),
         window_size_(window_size),
