@@ -17,9 +17,9 @@
 #include "types/types.hpp"
 
 // --- Benchmark Configuration ---
-constexpr int64_t TUPLES_R = 20000;          // Number of tuples for stream R
-constexpr int64_t TUPLES_S = 20000;          // Number of tuples for stream S
-constexpr size_t WINDOW_SIZE = 4000;         // Window size
+constexpr int64_t TUPLES_R = 200000;         // Number of tuples for stream R
+constexpr int64_t TUPLES_S = 200000;         // Number of tuples for stream S
+constexpr size_t WINDOW_SIZE = 40000;        // Window size
 constexpr int64_t DIFF = 20;                 // Join condition difference |r.key - s.key| <= diff
 constexpr size_t CHANNEL_BUFFER_SIZE = 128;  // Buffer size for channels
 
@@ -35,8 +35,8 @@ constexpr int64_t SEQ_START = 0;  // Start of the sequential stream
 constexpr int64_t SEQ_STEP = 1;   // Step size for the sequential stream
 
 // RANDOM STREAM
-constexpr int64_t KEY_LOW = 0;      // Lower bound for key range
-constexpr int64_t KEY_HIGH = 1000;  // Upper bound for key range
+constexpr int64_t KEY_LOW = 0;       // Lower bound for key range
+constexpr int64_t KEY_HIGH = 10000;  // Upper bound for key range
 
 // TPC Stream
 const std::string TPC_R_PATH = "../data/tpc-h/orders.tbl";
@@ -60,10 +60,10 @@ static void BM_HandshakeJoiner(benchmark::State &state) {
     state.PauseTiming();  // Pause while setting up streams and joiner
     // Create streams for each iteration
     auto rubbish_tuples = num_workers + WINDOW_SIZE;
-    std::unique_ptr<StreamType> r =
-        std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP, rubbish_tuples, 0x1000000000);
-    std::unique_ptr<StreamType> s =
-        std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP, rubbish_tuples, -0x1000000000);
+    auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
+    auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
+    // auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
+    // auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
 
     stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
                                                                   std::move(r), std::move(s), discard_stream);
@@ -92,8 +92,10 @@ static void BM_BroadcastJoiner(benchmark::State &state) {
 
   for (auto _ : state) {
     state.PauseTiming();
-    std::unique_ptr<StreamType> r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
-    std::unique_ptr<StreamType> s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
+    auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
+    auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
+    // auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
+    // auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
 
     // Note: BroadcastJoiner template takes StreamType as well
     stream::BroadcastJoiner<KeyType, ValueType, IndexType, StreamType> joiner(
