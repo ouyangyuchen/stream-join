@@ -45,14 +45,17 @@ class TupleReader {
    * @return the next tuple either from R or S stream, or nullopt if no more tuples.
    */
   auto GetNextTuple() -> std::optional<TupleType<KeyType, ValueType>> {
-    auto return_tuple = [this](std::optional<TupleType<KeyType, ValueType>> &tuple_opt) {
-      auto result = std::move(tuple_opt);
-      tuple_opt.reset();
-      last_ts_ = tuple_opt->timestamp_;
-      return result;
+    auto return_tuple = [this](std::optional<TupleType<KeyType, ValueType>> &tuple_opt_ref) {  // Renamed for clarity
+      auto result_opt = tuple_opt_ref;  // Copy the optional before modifying the original reference
+      if (result_opt.has_value()) {
+        last_ts_ = result_opt->timestamp_;
+      }
+      tuple_opt_ref.reset();  // Reset the original optional passed by reference
+      return result_opt;      // Return the copied optional
     };
 
-    while (r_stream_ && (!r_stream_->Eof() || r_tuple_) || s_stream_ && (!s_stream_->Eof() || s_tuple_)) {
+    while ((r_stream_ && (!r_stream_->Eof() || r_tuple_.has_value())) ||
+           (s_stream_ && (!s_stream_->Eof() || s_tuple_.has_value()))) {
       ReadFrom(r_stream_, r_tuple_);
       ReadFrom(s_stream_, s_tuple_);
 

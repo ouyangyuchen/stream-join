@@ -51,9 +51,16 @@ include_directories(${PROJECT_SOURCE_DIR}/libs/cpp-channel/include)
 # Install target (optional)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
+# Add FetchContent for Google Test
+include(FetchContent)
+FetchContent_Declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG        release-1.12.1 # Or another stable tag like release-1.10.0, release-1.11.0
+)
+# Note: For GTest 1.10.0+ you might need to set(GTEST_HAS_PTHREAD ON) if not detected
+FetchContent_MakeAvailable(googletest)
 
-# Find Google Test
-find_package(GTest REQUIRED)
 find_package(Threads REQUIRED)
 find_package(spdlog REQUIRED)
 
@@ -67,12 +74,12 @@ add_executable(unit_test
 
 # Include directories and link libraries
 target_link_libraries(unit_test
-    GTest::GTest
-    GTest::Main
+    PRIVATE
+    GTest::gtest
+    GTest::gtest_main
     Threads::Threads
     spdlog::spdlog
 )
-include_directories(${GTEST_INCLUDE_DIRS})
 
 # benchmark
 add_executable(benchmark_test
@@ -80,10 +87,10 @@ add_executable(benchmark_test
 )
 
 target_link_libraries(benchmark_test PRIVATE
-    benchmark::benchmark # Google Benchmark library (if using FetchContent alias)
-    benchmark::benchmark_main # Google Benchmark main library (if using FetchContent alias)
-    spdlog::spdlog      # Link spdlog to get fmt includes and library
-    Threads::Threads    # Needed for std::thread used in joiners
+    benchmark::benchmark
+    benchmark::benchmark_main
+    spdlog::spdlog
+    Threads::Threads
 )
 
 set_target_properties(benchmark_test PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON) # Or your desired standard

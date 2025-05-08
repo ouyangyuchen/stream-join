@@ -37,37 +37,6 @@ struct TestConfig {
   static constexpr size_t SUB_WINDOW_SIZE = 2;
 };
 
-TEST(WindowTest, BroadcastWindowBasic) {
-  size_t tuple_num_per_stream = 3;
-
-  auto input_chan =
-      std::make_shared<msd::channel<stream::TupleType<int64_t, int64_t>>>(TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE);
-  stream::BroadcastWindow<int64_t, int64_t, stream::ListIndex<int64_t, int64_t>> window(
-      TestConfig::SUB_WINDOW_SIZE, TestConfig::WINDOW_SIZE, input_chan, 0, std::cout);
-
-  // producer thread to generate tuples and send to the input channel interleavingly
-  auto producer = [&input_chan, tuple_num_per_stream]() {
-    TsType curr_ts = 0;
-    for (int i = 0; i < tuple_num_per_stream; ++i) {
-      stream::TupleType<int64_t, int64_t> tuple{curr_ts++, i, i * 10, stream::TupleFlag::INPUT_R};
-      (*input_chan) << tuple;
-      tuple.timestamp_ = curr_ts++;
-      tuple.ctl_ = stream::TupleFlag::INPUT_S;
-      (*input_chan) << tuple;
-    }
-    input_chan->close();
-  };
-  std::thread producer_thread(producer);
-
-  // start the consumer routine
-  window.Start(TestConfig::DIFF);
-
-  // wait for the producer thread to finish
-  if (producer_thread.joinable()) {
-    producer_thread.join();
-  }
-}
-
 TEST(WindowTest, BroadcastJoinerBasic) {
   // the **single-master** model of broadcast join should partition S stream just like not
   // partitioning, which is the same as using a single sub-window

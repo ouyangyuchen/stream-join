@@ -35,13 +35,13 @@ class BroadcastWindow {
    */
   BroadcastWindow(size_t window_len_S, size_t window_len_R, ChannelPointer<KeyType, ValueType> input_chan,
                   int32_t id = -1, std::ostream &os = std::cout)
-      : window_size_s_(window_len_S),
-        window_size_r_(window_len_R),
+      : window_size_r_(window_len_R),
+        window_size_s_(window_len_S),
         input_chan_(input_chan),
-        id_(id),
         os_(os),
-        index_s_(std::make_unique<Container>()),
-        index_r_(std::make_unique<Container>()) {
+        id_(id),
+        index_r_(std::make_unique<Container>()),
+        index_s_(std::make_unique<Container>()) {
     if (window_size_s_ == 0 or window_size_r_ == 0) {
       throw std::invalid_argument("window size must be greater than 0");
     }
@@ -137,9 +137,7 @@ class BroadcastWindow {
     spdlog::info("Window {}: Join count: {}", id_, join_count);
   }
 
-  std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
   size_t window_size_r_;
-  std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
   size_t window_size_s_;
 
   ChannelPointer<KeyType, ValueType> input_chan_;  // input channel for the tuples/events
@@ -148,6 +146,9 @@ class BroadcastWindow {
 
   // debug:
   int32_t id_;
+
+  std::unique_ptr<WindowIndex<KeyType, ValueType>> index_r_;  // total index of stream R
+  std::unique_ptr<WindowIndex<KeyType, ValueType>> index_s_;  // sub-index of stream S
 };
 
 /**
@@ -166,15 +167,15 @@ class BroadcastJoiner {
                   std::unique_ptr<Stream<KeyType, ValueType>> R, std::unique_ptr<Stream<KeyType, ValueType>> S,
                   std::ostream &os = std::cout)
       : num_workers_(num_workers),
-        channels_(num_workers),
         window_size_(window_size),
         channel_buffer_size_(channel_buffer_size),
-        tuple_reader_(std::move(R), std::move(S)) {
+        tuple_reader_(std::move(R), std::move(S)),
+        channels_(num_workers),
+        subwindows_() {
     if (num_workers_ == 0) {
       throw std::invalid_argument("num_workers must be greater than 0");
     }
-
-    // create N subwindows, each with a input event channel
+    subwindows_.reserve(num_workers_);
     for (size_t i = 0; i < num_workers_; ++i) {
       channels_[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
       subwindows_.emplace_back(window_size_, window_size_, channels_[i], i, os);
@@ -219,7 +220,6 @@ class BroadcastJoiner {
    */
   void ProducerRoutine() {
     std::optional<TupleType<KeyType, ValueType>> tuple_opt;
-    TsType curr_ts = 0;
     while ((tuple_opt = tuple_reader_.GetNextTuple()).has_value()) {
       TupleType<KeyType, ValueType> tuple = tuple_opt.value();
 
@@ -255,8 +255,8 @@ class BroadcastJoiner {
 
   TupleReader<KeyType, ValueType> tuple_reader_;  // tuple reader for the input streams (R and S)
 
-  std::vector<BroadcastWindow<KeyType, ValueType, Container>> subwindows_;  // subwindows for the join workers
   std::vector<ChannelPointer<KeyType, ValueType>> channels_;                // input channels for the subwindows
+  std::vector<BroadcastWindow<KeyType, ValueType, Container>> subwindows_;  // subwindows for the join workers
   std::vector<std::thread> workers_;                                        // working threads for the subwindows
   std::thread master_thread_;                                               // master thread for the joiner
 };

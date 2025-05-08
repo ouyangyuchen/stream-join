@@ -2,6 +2,7 @@
 # This file specifies intentionally untracked files that git should ignore.
 #==============================================================================#
 /data
+/log
 
 #==============================================================================#
 # File extensions to be ignored anywhere in the tree.

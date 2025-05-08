@@ -59,7 +59,6 @@ static void BM_HandshakeJoiner(benchmark::State &state) {
   for (auto _ : state) {
     state.PauseTiming();  // Pause while setting up streams and joiner
     // Create streams for each iteration
-    auto rubbish_tuples = num_workers + WINDOW_SIZE;
     auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
     auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
     // auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
