@@ -70,6 +70,7 @@ add_executable(unit_test
     test/test_index.cpp
     test/test_stream.cpp
     test/test_window.cpp
+    src/decorator.cpp
 )
 
 # Include directories and link libraries
@@ -84,6 +85,7 @@ target_link_libraries(unit_test
 # benchmark
 add_executable(benchmark_test
     benchmark/joiner_benchmark.cpp
+    src/decorator.cpp
 )
 
 target_link_libraries(benchmark_test PRIVATE

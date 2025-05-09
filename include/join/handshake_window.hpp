@@ -16,6 +16,7 @@
 #include "index/index.hpp"
 #include "stream/stream.hpp"
 #include "types/types.hpp"
+#include "utils/decorator.hpp"
 
 namespace stream {
 
@@ -125,27 +126,46 @@ class HandshakeWindow {
     size_t index_r_count_avg{0};  // average r tuple workload
     size_t index_s_count_avg{0};  // average s tuple workload
 
-    while (!ShouldTerminate()) {
-      ++iteration;
-      if (!input_left_chan_->empty()) {
-        TupleType<KeyType, ValueType> tuple;
-        *input_left_chan_ >> tuple;
-        assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S);
-        join_count += ProcessLeft(tuple, diff);
-      }
-      if (!input_right_chan_->empty()) {  // process tuple non-blockingly
-        TupleType<KeyType, ValueType> tuple;
-        *input_right_chan_ >> tuple;
-        assert(tuple.ctl_ == TupleFlag::INPUT_S);
-        join_count += ProcessRight(tuple, diff);
-      }
+    std::string profile_key = "Handshake: Loop [" + std::to_string(id_) + "]";
+    auto timed_exec_loop = decorator::decorateWithTimer(
+        [this, &diff, &join_count, &iteration, &index_r_count_avg, &index_s_count_avg](auto &&...args) {
+          while (!ShouldTerminate()) {
+            ++iteration;
 
-      ForwardTuples();
-      FlushPendings();
+            if (!input_left_chan_->empty()) {
+              TupleType<KeyType, ValueType> tuple;
+              *input_left_chan_ >> tuple;
+              assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S);
+              std::string profile_key = "Handshake: ProcessLeft [" + std::to_string(id_) + "]";
+              auto timed_process_left = decorator::decorateWithTimer(
+                  [this](auto &&...args) { return ProcessLeft(std::forward<decltype(args)>(args)...); }, profile_key);
+              join_count += timed_process_left(tuple, diff);
+            }
+            if (!input_right_chan_->empty()) {  // process tuple non-blockingly
+              TupleType<KeyType, ValueType> tuple;
+              *input_right_chan_ >> tuple;
+              assert(tuple.ctl_ == TupleFlag::INPUT_S);
+              std::string profile_key = "Handshake: ProcessRight [" + std::to_string(id_) + "]";
+              auto timed_process_right = decorator::decorateWithTimer(
+                  [this](auto &&...args) { return ProcessRight(std::forward<decltype(args)>(args)...); }, profile_key);
+              join_count += timed_process_right(tuple, diff);
+            }
 
-      index_r_count_avg += index_r_->Size();
-      index_s_count_avg += index_s_->Size();
-    }
+            std::string profile_key = "Handshake: ForwardTuples [" + std::to_string(id_) + "]";
+            auto timed_forward_tuples = decorator::decorateWithTimer([this]() { return ForwardTuples(); }, profile_key);
+            timed_forward_tuples();
+
+            profile_key = "Handshake: FlushPendings [" + std::to_string(id_) + "]";
+            auto timed_flush_pendings = decorator::decorateWithTimer([this]() { return FlushPendings(); }, profile_key);
+            timed_flush_pendings();
+
+            index_r_count_avg += index_r_->Size();
+            index_s_count_avg += index_s_->Size();
+          }
+        },
+        profile_key);
+
+    timed_exec_loop();  // Call the decorated function
 
     index_r_count_avg /= iteration;
     index_s_count_avg /= iteration;
@@ -164,7 +184,15 @@ class HandshakeWindow {
 
   auto ProcessLeft(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_R) {
-      auto results = index_s_->RangeSearch({tuple.key_ - diff, tuple.key_ + diff});
+      // Decorate RangeSearch call
+      std::string profile_key_search = "Handshake: RangeSearch I_s [" + std::to_string(id_) + "]";
+      auto timed_search = decorator::decorateWithTimer(
+          [this](auto &&...args) { return index_s_->RangeSearch(std::forward<decltype(args)>(args)...); },
+          profile_key_search);
+      // Explicitly create the pair/range object
+      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+      auto results = timed_search(search_range);  // Pass the created object
+
       size_t join_count = 0;
       for (const auto &tuple_s : results) {
         if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_, window_size_)) {
@@ -172,22 +200,36 @@ class HandshakeWindow {
           ++join_count;
         }
       }
-      index_r_->Insert(tuple);
+
+      // Decorate Insert call
+      std::string profile_key_insert = "Handshake: Insert I_r [" + std::to_string(id_) + "]";
+      auto timed_insert = decorator::decorateWithTimer(
+          [this](auto &&...args) { return index_r_->Insert(std::forward<decltype(args)>(args)...); },
+          profile_key_insert);
+      timed_insert(tuple);  // Call the decorated function
       size_r_->store(index_r_->Size());
+
       return join_count;
     }
     if (tuple.ctl_ == TupleFlag::ACK_S) {
       ProcessAck(tuple);
-      // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
       return 0;
     }
     throw std::runtime_error("Invalid tuple control flag");
-    return 0;
+    return 0;  // Should not reach here
   }
 
   auto ProcessRight(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_S) {
-      auto results = index_r_->RangeSearch({tuple.key_ - diff, tuple.key_ + diff});
+      // Decorate RangeSearch call
+      std::string profile_key_search = "Handshake: RangeSearch I_r [" + std::to_string(id_) + "]";
+      auto timed_search = decorator::decorateWithTimer(
+          [this](auto &&...args) { return index_r_->RangeSearch(std::forward<decltype(args)>(args)...); },
+          profile_key_search);
+      // Explicitly create the pair/range object
+      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+      auto results = timed_search(search_range);  // Pass the created object
+
       size_t join_count = 0;
       for (const auto &tuple_r : results) {
         if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_, window_size_) && !tuple_r.forwarded_) {
@@ -196,8 +238,14 @@ class HandshakeWindow {
         }
       }
 
-      index_s_->Insert(tuple);
+      // Decorate Insert call
+      std::string profile_key_insert = "Handshake: Insert I_s [" + std::to_string(id_) + "]";
+      auto timed_insert = decorator::decorateWithTimer(
+          [this](auto &&...args) { return index_s_->Insert(std::forward<decltype(args)>(args)...); },
+          profile_key_insert);
+      timed_insert(tuple);  // Call the decorated function
       size_s_->store(index_s_->Size());
+
       auto tuple_ack{tuple};
       tuple_ack.ctl_ = TupleFlag::ACK_S;
       assert(tuple_ack.forwarded_ == false);
@@ -205,7 +253,7 @@ class HandshakeWindow {
       return join_count;
     }
     throw std::runtime_error("Invalid tuple control flag");
-    return 0;
+    return 0;  // Should not reach here
   }
 
   void ForwardTuples() {
@@ -266,9 +314,11 @@ class HandshakeWindow {
         auto tuple_sent = pending_list_right_.front();
         pending_list_right_.pop_front();
 
-        // result completeness: tuple r is deleted from index until its pending tuple is flushed
         if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
-          auto tuple_del = index_r_->PopOldest();
+          // Decorate PopOldest call
+          std::string profile_key_pop = "Handshake: PopOldest I_r [" + std::to_string(id_) + "]";
+          auto timed_pop = decorator::decorateWithTimer([this]() { return index_r_->PopOldest(); }, profile_key_pop);
+          auto tuple_del = timed_pop();  // Call the decorated function
           (void)tuple_del;
           size_r_->store(index_r_->Size());
           assert(tuple_del.key_ == tuple_sent.key_);
@@ -322,7 +372,10 @@ class HandshakeWindow {
     assert(tuple_s.key_ == tuple.key_);
     assert(tuple_s.timestamp_ == tuple.timestamp_);
     assert(tuple_s.value_ == tuple.value_);
-    index_s_->PopOldest();
+
+    std::string profile_key_pop = "Handshake: PopOldest I_s [" + std::to_string(id_) + "]";
+    auto timed_pop = decorator::decorateWithTimer([this]() { return index_s_->PopOldest(); }, profile_key_pop);
+    timed_pop();  // Call the decorated function
     size_s_->store(index_s_->Size());
     // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
@@ -519,7 +572,7 @@ class HandshakeJoiner {
 
   std::thread right_end_routine_;  // thread for the right end of the joiner
   std::thread left_end_routine_;   // thread for the left end of the joiner
-};                                 // namespace stream
+};  // namespace stream
 
 }  // namespace stream
 

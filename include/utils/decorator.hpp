@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <utility>
 
-#define DEBUGGING 1
+// #define DEBUGGING
 
 using Duration = std::chrono::high_resolution_clock::duration;
 
@@ -64,6 +64,7 @@ auto decorateWithTimer(Func &&func, const std::string &key) {
     }
   };
 #else
+  (void)key;
   return std::forward<Func>(func);
 #endif
 }
