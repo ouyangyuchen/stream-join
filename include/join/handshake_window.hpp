@@ -269,6 +269,7 @@ class HandshakeWindow {
         // result completeness: tuple r is deleted from index until its pending tuple is flushed
         if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
           auto tuple_del = index_r_->PopOldest();
+          (void)tuple_del;
           size_r_->store(index_r_->Size());
           assert(tuple_del.key_ == tuple_sent.key_);
           assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
@@ -314,6 +315,8 @@ class HandshakeWindow {
 
   auto ProcessAck(const TupleType<KeyType, ValueType> &tuple) -> void {
     auto &tuple_s = index_s_->GetOldestRef();
+    (void)tuple_s;
+    (void)tuple;
     assert(tuple_s.forwarded_);
     assert(tuple_s.ctl_ == TupleFlag::INPUT_S);
     assert(tuple_s.key_ == tuple.key_);
