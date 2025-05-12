@@ -1,9 +1,8 @@
-// filepath: benchmark/joiner_benchmark.cpp
-#include <benchmark/benchmark.h>
 #include <cstdint>
+#include <iomanip>
 #include <memory>
 #include <ostream>
-#include <sstream>  // To discard output during benchmark
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -15,28 +14,29 @@
 #include "stream/sequential_stream.hpp"
 #include "stream/tpc_stream.hpp"
 #include "types/types.hpp"
+#include "utils/decorator.hpp"
 
 // --- Benchmark Configuration ---
-constexpr int64_t TUPLES_R = 200000;         // Number of tuples for stream R
-constexpr int64_t TUPLES_S = 200000;         // Number of tuples for stream S
-constexpr size_t WINDOW_SIZE = 40000;        // Window size
-constexpr int64_t DIFF = 20;                 // Join condition difference |r.key - s.key| <= diff
+constexpr int64_t TUPLES_R = 2000000;        // Number of tuples for stream R
+constexpr int64_t TUPLES_S = 5000000;        // Number of tuples for stream S
+constexpr size_t WINDOW_SIZE = 500000;       // Window size
+constexpr int64_t DIFF = 2000;               // Join condition difference |r.key - s.key| <= diff
 constexpr size_t CHANNEL_BUFFER_SIZE = 128;  // Buffer size for channels
 
-const std::vector<int64_t> WORKERS = {1, 2, 3, 4, 5, 6, 7, 8, 12, 16};  // Number of workers to test
+const std::vector<int64_t> WORKERS = {1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 28, 32};  // Number of workers to test
 
 // --- Stream Configuration ---
 using KeyType = int64_t;
 using ValueType = int64_t;
-using StreamType = stream::SequentialStream;
+using StreamType = stream::RandomStream;
 
 // SEQUENTIAL STREAM
 constexpr int64_t SEQ_START = 0;  // Start of the sequential stream
 constexpr int64_t SEQ_STEP = 1;   // Step size for the sequential stream
 
 // RANDOM STREAM
-constexpr int64_t KEY_LOW = 0;       // Lower bound for key range
-constexpr int64_t KEY_HIGH = 10000;  // Upper bound for key range
+constexpr int64_t KEY_LOW = 0;        // Lower bound for key range
+constexpr int64_t KEY_HIGH = 100000;  // Upper bound for key range
 
 // TPC Stream
 const std::string TPC_R_PATH = "../data/tpc-h/orders.tbl";
@@ -49,86 +49,96 @@ constexpr int s_value_column = 1;
 // --- Handshake Joiner Benchmark ---
 
 template <typename IndexType>
-static void BM_HandshakeJoiner(benchmark::State &state) {
-  const size_t num_workers = state.range(0);
+static void BM_HandshakeJoiner(size_t num_workers) {
   const int64_t total_tuples = TUPLES_R + TUPLES_S;
-  // Use a stringstream to discard output during benchmark runs
+  (void)total_tuples;
   std::ostringstream discard_stream;
-  spdlog::set_level(spdlog::level::off);
+  std::string label = "HandshakeJoiner " + IndexType::Name + "/" + std::to_string(num_workers) + "w";
 
-  for (auto _ : state) {
-    state.PauseTiming();  // Pause while setting up streams and joiner
-    // Create streams for each iteration
-    auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
-    auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
-    // auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
-    // auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
+  // Create streams for each iteration
+  // auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
+  // auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
+  auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
+  auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
 
-    stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
-                                                                  std::move(r), std::move(s), discard_stream);
-    state.ResumeTiming();  // Resume timing for the actual join operation
+  stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
+                                                                std::move(r), std::move(s), discard_stream);
 
-    joiner.Start(DIFF);
+  auto start_time = std::chrono::high_resolution_clock::now();
+  joiner.Start(DIFF);
+  auto end_time = std::chrono::high_resolution_clock::now();
 
-    state.SetItemsProcessed(total_tuples);
-  }
-
-  state.SetComplexityN(num_workers);  // Optional: Mark complexity related to workers
-  state.SetLabel(IndexType::Name + "/" + std::to_string(num_workers) + "w");
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+  double throughput = static_cast<double>(total_tuples) / (duration / 1e6);  // tuples per second
+  std::cout << std::left << std::setw(30) << label << ": " << std::setw(12) << duration << " us | " << std::setw(20)
+            << std::fixed << std::setprecision(2) << throughput << " tuples/s (end to end)" << std::endl;
 }
 
 // --- Broadcast Joiner Benchmark ---
 
 template <typename IndexType>
-static void BM_BroadcastJoiner(benchmark::State &state) {
-  const size_t num_workers = state.range(0);
-  const int64_t total_tuples = TUPLES_R + TUPLES_S;
+static void BM_BroadcastJoiner(size_t num_workers) {
+  const int64_t per_window_total_tuples = TUPLES_R + TUPLES_S / num_workers;
+  const size_t end_to_end_total_tuples = TUPLES_R + TUPLES_S;
   std::ostringstream discard_stream;
+  std::string label = "BroadcastJoiner " + IndexType::Name + "/" + std::to_string(num_workers) + "w";
+
+  // auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
+  // auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
+  auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
+  auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
+
+  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
+                                                                std::move(r), std::move(s), discard_stream);
+  auto start_time = std::chrono::high_resolution_clock::now();
+  joiner.Start(DIFF);
+  auto end_time = std::chrono::high_resolution_clock::now();
+
+  auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
+  double per_window_throughput = static_cast<double>(per_window_total_tuples) / (duration / 1e6);  // tuples per second
+  double end_to_end_throughput = static_cast<double>(end_to_end_total_tuples) / (duration / 1e6);  // tuples per second
+
+  std::cout << std::left << std::setw(30) << label << ": " << std::setw(12) << duration << " us | " << std::setw(20)
+            << std::fixed << std::setprecision(2) << per_window_throughput << " tuples/s (per window)| "
+            << std::setw(20) << std::fixed << std::setprecision(2) << end_to_end_throughput << " tuples/s (end to end)"
+            << std::endl;
+}
+
+// --- Main Function ---
+int main(int argc, char **argv) {
+  (void)argc;
+  (void)argv;
   spdlog::set_level(spdlog::level::off);
 
-  for (auto _ : state) {
-    state.PauseTiming();
-    auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
-    auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
-    // auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
-    // auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
+  // print benchmark configuration parameters
+  std::cout << "--- Benchmark Configuration ---" << std::endl;
+  std::cout << "Benchmark Configuration:\n";
+  std::cout << "  Number of tuples (R): " << TUPLES_R << "\n";
+  std::cout << "  Number of tuples (S): " << TUPLES_S << "\n";
+  std::cout << "  Window size: " << WINDOW_SIZE << "\n";
+  std::cout << "  Join condition difference: " << DIFF << "\n";
+  std::cout << "  Channel buffer size: " << CHANNEL_BUFFER_SIZE << "\n";
+  std::cout << "  Stream type: " << typeid(StreamType).name() << "\n";
+  std::cout << "  Random Stream key range: [" << KEY_LOW << ", " << KEY_HIGH << "]\n";
+  std::cout << std::endl;
 
-    // Note: BroadcastJoiner template takes StreamType as well
-    stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
-                                                                  std::move(r), std::move(s), discard_stream);
-    state.ResumeTiming();
-
-    joiner.Start(DIFF);
-
-    state.SetItemsProcessed(total_tuples);
+  for (const auto &num_workers : WORKERS) {
+    BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers);
   }
 
-  state.SetComplexityN(num_workers);
-  state.SetLabel(IndexType::Name + "/" + std::to_string(num_workers) + "w");
-}
-
-// --- Register Benchmarks ---
-
-// Function to apply worker arguments from the WORKERS vector
-static void RegisterWorkerArgs(benchmark::internal::Benchmark *b) {
-  b->ArgNames({"workers"});  // Set argument name once
-  for (int64_t workers : WORKERS) {
-    b->Arg(workers);  // Register a separate run for each worker count
+  for (const auto &num_workers : WORKERS) {
+    BM_BroadcastJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers);
   }
+
+  // for (const auto &num_workers : WORKERS) {
+  //   BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers);
+  // }
+
+  // for (const auto &num_workers : WORKERS) {
+  //   BM_HandshakeJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers);
+  // }
+
+  decorator::printAllDurations();
+
+  return 0;
 }
-
-// Handshake Joiner Instances
-BENCHMARK_TEMPLATE(BM_HandshakeJoiner, stream::ListIndex<KeyType, ValueType>)
-    ->Apply(RegisterWorkerArgs)  // Apply the function to register args
-    ->UseRealTime();
-BENCHMARK_TEMPLATE(BM_HandshakeJoiner, stream::BPlusTreeIndex<KeyType, ValueType>)
-    ->Apply(RegisterWorkerArgs)
-    ->UseRealTime();
-
-// Broadcast Joiner Instances
-BENCHMARK_TEMPLATE(BM_BroadcastJoiner, stream::ListIndex<KeyType, ValueType>)->Apply(RegisterWorkerArgs)->UseRealTime();
-BENCHMARK_TEMPLATE(BM_BroadcastJoiner, stream::BPlusTreeIndex<KeyType, ValueType>)
-    ->Apply(RegisterWorkerArgs)
-    ->UseRealTime();
-
-BENCHMARK_MAIN();
