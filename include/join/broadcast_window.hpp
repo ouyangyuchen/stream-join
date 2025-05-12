@@ -11,7 +11,6 @@
 #include "index/index.hpp"
 #include "stream/stream.hpp"
 #include "types/types.hpp"
-#include "utils/decorator.hpp"
 
 namespace stream {
 
@@ -66,9 +65,7 @@ class BroadcastWindow {
     if (diff < 0) {
       throw std::invalid_argument("diff must be greater than or equal to 0");
     }
-    std::string profile_key = "BroadcastWindow: Loop [" + std::to_string(id_) + "]";
-    auto timed_exec_loop = decorator::decorateWithTimer([this, diff]() { WorkRoutine(diff); }, profile_key);
-    timed_exec_loop();
+    WorkRoutine(diff);
   };
 
  private:
@@ -130,15 +127,9 @@ class BroadcastWindow {
     size_t join_count = 0;
     for (const TupleType<KeyType, ValueType> tuple : *this->input_chan_) {
       if (tuple.ctl_ == TupleFlag::INPUT_R) {
-        std::string profile_key = "BroadcastWindow: ProcessR [" + std::to_string(id_) + "]";
-        auto timed_process_r = decorator::decorateWithTimer(
-            [this, tuple, diff]() { return ProcessR(std::move(tuple), diff); }, profile_key);
-        join_count += timed_process_r();
+        join_count += ProcessR(tuple, diff);
       } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
-        std::string profile_key = "BroadcastWindow: ProcessS [" + std::to_string(id_) + "]";
-        auto timed_process_s = decorator::decorateWithTimer(
-            [this, tuple, diff]() { return ProcessS(std::move(tuple), diff); }, profile_key);
-        join_count += timed_process_s();
+        join_count += ProcessS(tuple, diff);
       } else {
         throw std::runtime_error("Invalid tuple control flag");
       }
