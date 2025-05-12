@@ -326,11 +326,8 @@ class HandshakeWindow {
     assert(tuple_s.timestamp_ == tuple.timestamp_);
     assert(tuple_s.value_ == tuple.value_);
 
-    std::string profile_key_pop = "Handshake: PopOldest I_s [" + std::to_string(id_) + "]";
-    auto timed_pop = decorator::decorateWithTimer([this]() { return index_s_->PopOldest(); }, profile_key_pop);
-    timed_pop();  // Call the decorated function
+    index_s_->PopOldest();
     size_s_->store(index_s_->Size());
-    // spdlog::debug("Window {} deletes: {}", id_, tuple_s);
   }
 
   const size_t window_size_;
