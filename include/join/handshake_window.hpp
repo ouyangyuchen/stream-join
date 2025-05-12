@@ -116,7 +116,6 @@ class HandshakeWindow {
    * @brief Process tuples in the input channel and forward them to left/right correspondingly.
    */
   void ProcessRoutine(KeyType diff) {
-    (void)diff;
     size_t iteration{0};
     size_t join_count{0};
     size_t index_r_count_avg{0};  // average r tuple workload
@@ -129,20 +128,16 @@ class HandshakeWindow {
         TupleType<KeyType, ValueType> tuple;
         *input_left_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S);
-        // join_count += ProcessLeft(tuple, diff);
-        SendToRight(tuple);
-        join_count += 1;
+        join_count += ProcessLeft(tuple, diff);
       }
       if (!input_right_chan_->empty()) {  // process tuple non-blockingly
         TupleType<KeyType, ValueType> tuple;
         *input_right_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_S);
-        // join_count += ProcessRight(tuple, diff);
-        SendToLeft(tuple);
-        join_count += 1;
+        join_count += ProcessRight(tuple, diff);
       }
 
-      // ForwardTuples();
+      ForwardTuples();
       FlushPendings();
 
       index_r_count_avg += index_r_->Size();
@@ -257,14 +252,14 @@ class HandshakeWindow {
     } else if (output_left_chan_ == nullptr) {
       // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
       // therefore, the left-most one directly processes the ack as if it is received
-      // for (auto &tuple_del : pending_list_left_) {
-      //   tuple_del.forwarded_ = true;  // for assertion check
-      //   TsType oldest_s_ts = tuple_del.timestamp_;
-      //   assert(tuple_del.timestamp_ <= *newest_s_ts_);
-      //   assert(!TimeStampMatched(*newest_r_ts_, tuple_del.timestamp_, window_size_));
-      //   ProcessAck(tuple_del);
-      //   *oldest_s_ts_ = oldest_s_ts;
-      // }
+      for (auto &tuple_del : pending_list_left_) {
+        tuple_del.forwarded_ = true;  // for assertion check
+        TsType oldest_s_ts = tuple_del.timestamp_;
+        assert(tuple_del.timestamp_ <= *newest_s_ts_);
+        assert(!TimeStampMatched(*newest_r_ts_, tuple_del.timestamp_, window_size_));
+        ProcessAck(tuple_del);
+        *oldest_s_ts_ = oldest_s_ts;
+      }
       pending_list_left_.clear();
     }
     if (output_right_chan_ && !output_right_chan_->closed()) {
@@ -275,13 +270,13 @@ class HandshakeWindow {
         auto tuple_sent = pending_list_right_.front();
         pending_list_right_.pop_front();
 
-        // if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
-        //   auto tuple_del = index_r_->PopOldest();
-        //   (void)tuple_del;
-        //   size_r_->store(index_r_->Size());
-        //   assert(tuple_del.key_ == tuple_sent.key_);
-        //   assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
-        // }
+        if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
+          auto tuple_del = index_r_->PopOldest();
+          (void)tuple_del;
+          size_r_->store(index_r_->Size());
+          assert(tuple_del.key_ == tuple_sent.key_);
+          assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
+        }
         *output_right_chan_ << tuple_sent;
       }
       if (pending_list_right_.empty()) {
@@ -293,16 +288,16 @@ class HandshakeWindow {
       }
     } else if (output_right_chan_ == nullptr) {
       // right-most sub-window sends "r" tuple to the null: directly pop the oldest tuple
-      // for (const auto &tuple : pending_list_right_) {
-      //   if (tuple.ctl_ == TupleFlag::ACK_S) {
-      //     continue;
-      //   }
-      //   auto tuple_del = index_r_->PopOldest();
-      //   size_r_->store(index_r_->Size());
-      //   assert(tuple_del.timestamp_ <= *newest_r_ts_);
-      //   assert(!TimeStampMatched(tuple.timestamp_, *newest_s_ts_, window_size_));
-      //   *oldest_r_ts_ = tuple_del.timestamp_;
-      // }
+      for (const auto &tuple : pending_list_right_) {
+        if (tuple.ctl_ == TupleFlag::ACK_S) {
+          continue;
+        }
+        auto tuple_del = index_r_->PopOldest();
+        size_r_->store(index_r_->Size());
+        assert(tuple_del.timestamp_ <= *newest_r_ts_);
+        assert(!TimeStampMatched(tuple.timestamp_, *newest_s_ts_, window_size_));
+        *oldest_r_ts_ = tuple_del.timestamp_;
+      }
       pending_list_right_.clear();
     }
   }
