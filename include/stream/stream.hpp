@@ -106,6 +106,39 @@ class TupleReader {
   std::unique_ptr<Stream<KeyType, ValueType>> s_stream_;
 };
 
+template <typename KeyType, typename ValueType>
+class TupleReaderInMemory {
+ public:
+  TupleReaderInMemory(std::unique_ptr<Stream<KeyType, ValueType>> r, std::unique_ptr<Stream<KeyType, ValueType>> s)
+      : reader_(std::move(r), std::move(s)) {
+    while (true) {
+      auto tuple = reader_.GetNextTuple();
+      if (!tuple.has_value()) {
+        break;
+      }
+      buffer_.push_back(tuple.value());
+    }
+  }
+
+  ~TupleReaderInMemory() = default;
+  TupleReaderInMemory(const TupleReaderInMemory &) = delete;
+  auto operator=(const TupleReaderInMemory &) -> TupleReaderInMemory & = delete;
+  TupleReaderInMemory(TupleReaderInMemory &&) = default;
+  auto operator=(TupleReaderInMemory &&) -> TupleReaderInMemory & = default;
+
+  auto GetNextTuple() -> std::optional<TupleType<KeyType, ValueType>> {
+    if (current_index_ < buffer_.size()) {
+      return buffer_[current_index_++];
+    }
+    return std::nullopt;  // no more tuples
+  }
+
+ private:
+  TupleReader<KeyType, ValueType> reader_;
+  std::vector<TupleType<KeyType, ValueType>> buffer_;
+  size_t current_index_{0};
+};
+
 }  // namespace stream
 
 #endif  // STREAM_HPP_
