@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstdlib>
 #include <deque>
+#include <exception>  // Required for std::current_exception and std::exception
+#include <future>     // Required for std::promise and std::future
 #include <iostream>
 #include <ostream>
 #include <thread>
@@ -161,19 +163,18 @@ class HandshakeWindow {
 
   auto ProcessLeft(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_R) {
-      if (!index_r_->Insert(tuple)) {
-        return 0;  // tuple.key already exists in the index, ignore it
-      }
-      size_r_->store(index_r_->Size());
-
-      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-      auto results = index_s_->RangeSearch(search_range);
-
       size_t join_count = 0;
-      for (const auto &tuple_s : results) {
-        if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_, window_size_)) {
-          spdlog::debug("{} | {}", tuple, tuple_s);
-          ++join_count;
+      if (index_r_->Insert(tuple)) {
+        size_r_->store(index_r_->Size());
+
+        auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+        auto results = index_s_->RangeSearch(search_range);
+
+        for (const auto &tuple_s : results) {
+          if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_, window_size_)) {
+            // spdlog::debug("{} | {}", tuple, tuple_s);
+            ++join_count;
+          }
         }
       }
       return join_count;
@@ -188,19 +189,18 @@ class HandshakeWindow {
 
   auto ProcessRight(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_S) {
-      if (!index_s_->Insert(tuple)) {
-        return 0;
-      }
-      size_s_->store(index_s_->Size());
-
-      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-      auto results = index_r_->RangeSearch(search_range);
-
       size_t join_count = 0;
-      for (const auto &tuple_r : results) {
-        if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_, window_size_) && !tuple_r.forwarded_) {
-          spdlog::debug("{} | {}", tuple_r, tuple);
-          ++join_count;
+      if (index_s_->Insert(tuple)) {
+        size_s_->store(index_s_->Size());
+
+        auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+        auto results = index_r_->RangeSearch(search_range);
+
+        for (const auto &tuple_r : results) {
+          if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_, window_size_) && !tuple_r.forwarded_) {
+            // spdlog::debug("{} | {}", tuple_r, tuple);
+            ++join_count;
+          }
         }
       }
 
@@ -262,6 +262,7 @@ class HandshakeWindow {
       }
       pending_list_left_.clear();
     }
+
     if (output_right_chan_ && !output_right_chan_->closed()) {
       while (!pending_list_right_.empty()) {
         if (output_right_chan_->full(FULL_THRESHOLD)) {
@@ -336,7 +337,7 @@ class HandshakeWindow {
   std::deque<TupleType<KeyType, ValueType>> pending_list_left_;   // pending tuples to be sent
   ChannelPointer<KeyType, ValueType> output_right_chan_;          // send r tuples and ack(s) to the right
   std::deque<TupleType<KeyType, ValueType>> pending_list_right_;  // pending tuples to be sent
-  static constexpr size_t FULL_THRESHOLD{2};                      // threshold for considering the channel is full
+  static constexpr size_t FULL_THRESHOLD{0};                      // threshold for considering the channel is full
 
   ChannelPointer<KeyType, ValueType> input_left_chan_;   // receive r tuples or ack(s) from the left
   ChannelPointer<KeyType, ValueType> input_right_chan_;  // receive s tuples from the right
@@ -442,7 +443,6 @@ class HandshakeJoiner {
           // wait for the right end to pop the expired tuples and update the oldest timestamp
         }
         (*send_r_chan_) << *tuple_opt;
-        spdlog::debug("Master sends r tuple: {}", *tuple_opt);
         newest_r_ts_ = tuple_opt->timestamp_;
       } else if (tuple_opt->ctl_ == TupleFlag::INPUT_S) {
         while (!ShouldPushS()) {
@@ -450,7 +450,6 @@ class HandshakeJoiner {
         }
         (*send_s_chan_) << *tuple_opt;
         newest_s_ts_ = tuple_opt->timestamp_;
-        spdlog::debug("Master sends s tuple: {}", *tuple_opt);
       } else {
         throw std::runtime_error("Invalid tuple control flag");
       }
