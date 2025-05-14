@@ -19,10 +19,10 @@ using stream::TsType;
 using stream::TupleType;
 
 struct TestConfig {
-  static constexpr size_t WINDOW_SIZE = 400;
+  static constexpr size_t WINDOW_SIZE = 40000;
   static constexpr int64_t DIFF = 340;
-  static constexpr size_t TUPLES_R = 100000;
-  static constexpr size_t TUPLES_S = 100000;
+  static constexpr size_t TUPLES_R = 500000;
+  static constexpr size_t TUPLES_S = 500000;
 
   static constexpr size_t BROADCAST_CHANNEL_BUFFER_SIZE = 10;
   static constexpr size_t BROADCAST_WORKERS = 8;

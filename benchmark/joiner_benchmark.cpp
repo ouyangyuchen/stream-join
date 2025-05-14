@@ -17,13 +17,14 @@
 #include "utils/decorator.hpp"
 
 // --- Benchmark Configuration ---
-constexpr int64_t TUPLES_R = 2000000;        // Number of tuples for stream R
-constexpr int64_t TUPLES_S = 5000000;        // Number of tuples for stream S
-constexpr size_t WINDOW_SIZE = 500000;       // Window size
+constexpr int64_t TUPLES_R = 200000;         // Number of tuples for stream R
+constexpr int64_t TUPLES_S = 200000;         // Number of tuples for stream S
+constexpr size_t WINDOW_SIZE = 50000;        // Window size
 constexpr int64_t DIFF = 2000;               // Join condition difference |r.key - s.key| <= diff
 constexpr size_t CHANNEL_BUFFER_SIZE = 128;  // Buffer size for channels
 
-const std::vector<int64_t> WORKERS = {1, 2, 3, 4, 5, 6, 7, 8, 12, 16, 20, 24, 28, 32};  // Number of workers to test
+const std::vector<int64_t> WORKERS = {1,  2,  3,  4,  5,  6,  7,  8, 12,
+                                      16, 20, 24, 28, 32, 36, 42, 48};  // Number of workers to test
 
 // --- Stream Configuration ---
 using KeyType = int64_t;
@@ -130,13 +131,13 @@ int main(int argc, char **argv) {
     BM_BroadcastJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers);
   }
 
-  // for (const auto &num_workers : WORKERS) {
-  //   BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers);
-  // }
+  for (const auto &num_workers : WORKERS) {
+    BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers);
+  }
 
-  // for (const auto &num_workers : WORKERS) {
-  //   BM_HandshakeJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers);
-  // }
+  for (const auto &num_workers : WORKERS) {
+    BM_HandshakeJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers);
+  }
 
   decorator::printAllDurations();
 

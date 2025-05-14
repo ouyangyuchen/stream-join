@@ -16,7 +16,11 @@ enum class TupleFlag {
   INVALID,  // invalid tuple (init state)
   INPUT_R,  // input tuple is from R stream
   INPUT_S,  // input tuple is from S stream
-  ACK_S,    // ack message for S tuple (used in handshake join)
+
+  // handshake join:
+  ACK_S,  // ack message for S tuple
+  EOF_R,  // end of stream R, invalid data
+  EOF_S,  // end of stream S, invalid data
 };
 
 template <typename KeyType, typename ValueType>
