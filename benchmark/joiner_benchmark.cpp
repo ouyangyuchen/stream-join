@@ -8,8 +8,8 @@
 
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
-#include "join/broadcast_window.hpp"
-#include "join/handshake_window.hpp"
+#include "join/broadcast_join.hpp"
+#include "join/handshake_join.hpp"
 #include "stream/random_stream.hpp"
 #include "stream/sequential_stream.hpp"
 #include "stream/tpc_stream.hpp"
