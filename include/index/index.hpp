@@ -12,12 +12,11 @@ class WindowIndex {
   virtual ~WindowIndex() = default;
 
   /**
-   * @brief Insert a tuple (timestamp + key value) into the index. No op if key is already in the index.
+   * @brief Insert a tuple (timestamp + key value) into the index.
    *
    * @param tuple The tuple to be inserted.
-   * @return true if the tuple is inserted successfully, false if the key already exists in the index.
    */
-  virtual auto Insert(const TupleType<KeyType, ValueType> &tuple) -> bool = 0;
+  virtual void Insert(const TupleType<KeyType, ValueType> &tuple) = 0;
 
   /**
    * @brief Remove the tuple with the oldest timestamp from the index.

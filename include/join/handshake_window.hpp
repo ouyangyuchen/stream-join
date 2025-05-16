@@ -199,19 +199,17 @@ class HandshakeWindow {
   auto ProcessLeft(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_R) {
       size_t join_count = 0;
-      if (index_r_->Insert(tuple)) {
-        size_r_->store(index_r_->Size());
-
-        auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-        auto results = index_s_->RangeSearch(search_range);
-
-        for (const auto &tuple_s : results) {
-          if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_)) {
-            // spdlog::debug("{} | {}", tuple, tuple_s);
-            ++join_count;
-          }
+      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+      auto results = index_s_->RangeSearch(search_range);
+      for (const auto &tuple_s : results) {
+        if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_)) {
+          // spdlog::debug("{} | {}", tuple, tuple_s);
+          ++join_count;
         }
       }
+
+      index_r_->Insert(tuple);
+      size_r_->store(index_r_->Size());
       return join_count;
     }
     if (tuple.ctl_ == TupleFlag::ACK_S) {
@@ -225,19 +223,17 @@ class HandshakeWindow {
   auto ProcessRight(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_S) {
       size_t join_count = 0;
-      if (index_s_->Insert(tuple)) {
-        size_s_->store(index_s_->Size());
-
-        auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-        auto results = index_r_->RangeSearch(search_range);
-
-        for (const auto &tuple_r : results) {
-          if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_) && !tuple_r.forwarded_) {
-            // spdlog::debug("{} | {}", tuple_r, tuple);
-            ++join_count;
-          }
+      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
+      auto results = index_r_->RangeSearch(search_range);
+      for (const auto &tuple_r : results) {
+        if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_) && !tuple_r.forwarded_) {
+          // spdlog::debug("{} | {}", tuple_r, tuple);
+          ++join_count;
         }
       }
+
+      index_s_->Insert(tuple);
+      size_s_->store(index_s_->Size());
 
       auto tuple_ack{tuple};
       tuple_ack.ctl_ = TupleFlag::ACK_S;

@@ -2,6 +2,7 @@
 #define BPLUS_TREE_INDEX_HPP
 
 #include <deque>
+#include <list>
 #include <stdexcept>
 #include "index/index.hpp"
 #include "stx/btree_map.h"  // NOLINT
@@ -15,7 +16,7 @@ class BPlusTreeIndex : public WindowIndex<KeyType, ValueType> {
 
   ~BPlusTreeIndex() override = default;
 
-  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> bool override;
+  void Insert(const TupleType<KeyType, ValueType> &tuple) override;
 
   auto PopOldest() -> TupleType<KeyType, ValueType> override;
 
@@ -33,21 +34,19 @@ class BPlusTreeIndex : public WindowIndex<KeyType, ValueType> {
   const static std::string Name;
 
  private:
-  stx::btree_map<KeyType, TupleType<KeyType, ValueType>> tree_;  // B+ tree to store tuples and search
-  std::deque<KeyType> arrival_list;                              // tuples in the arrival order
+  stx::btree_map<KeyType, std::list<TupleType<KeyType, ValueType>>> tree_;  // store multiple tuples for each key
+  std::deque<KeyType> arrival_list;                                         // tuples in the arrival order
+  size_t size_{0};                                                          // number of tuples in the index
 };
 
 template <typename KeyType, typename ValueType>
 const std::string BPlusTreeIndex<KeyType, ValueType>::Name = "BPlusTreeIndex";
 
 template <typename KeyType, typename ValueType>
-auto BPlusTreeIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> bool {
-  auto [_, success] = tree_.insert({tuple.key_, tuple});
-  if (!success) {
-    return false;
-  }
+void BPlusTreeIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) {
+  tree_[tuple.key_].push_back(tuple);
   arrival_list.push_back(tuple.key_);
-  return true;
+  size_++;
 }
 
 template <typename KeyType, typename ValueType>
@@ -56,13 +55,13 @@ auto BPlusTreeIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, Value
     throw std::out_of_range("Index is empty");
   }
   auto oldest_key = arrival_list.front();
-  auto it = tree_.find(oldest_key);
-  if (it == tree_.end()) {
-    throw std::out_of_range("Key not found in index");
-  }
-  auto oldest_tuple = it->second;
-  tree_.erase(it);
   arrival_list.pop_front();
+  auto oldest_tuple = tree_[oldest_key].front();
+  tree_[oldest_key].pop_front();
+  if (tree_[oldest_key].empty()) {
+    tree_.erase(oldest_key);
+  }
+  size_--;
   return oldest_tuple;
 }
 
@@ -71,12 +70,10 @@ auto BPlusTreeIndex<KeyType, ValueType>::GetOldest() const -> TupleType<KeyType,
   if (arrival_list.empty()) {
     throw std::out_of_range("Index is empty");
   }
-  auto oldest_key = arrival_list.front();
+  auto &oldest_key = arrival_list.front();
   auto it = tree_.find(oldest_key);
-  if (it == tree_.end()) {
-    throw std::out_of_range("Key not found in index");
-  }
-  return it->second;
+  auto oldest_tuple = it->second.front();
+  return oldest_tuple;
 }
 
 template <typename KeyType, typename ValueType>
@@ -84,8 +81,8 @@ auto BPlusTreeIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType, Va
   if (arrival_list.empty()) {
     throw std::out_of_range("Index is empty");
   }
-  auto oldest_key = arrival_list.front();
-  return tree_[oldest_key];
+  auto &oldest_key = arrival_list.front();
+  return tree_[oldest_key].front();
 }
 
 template <typename KeyType, typename ValueType>
@@ -94,7 +91,7 @@ auto BPlusTreeIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, Ke
   std::vector<TupleType<KeyType, ValueType>> result;
   auto it = tree_.lower_bound(key_range.first);
   while (it != tree_.end() && it->first <= key_range.second) {
-    result.push_back(it->second);
+    result.insert(result.end(), it->second.begin(), it->second.end());
     ++it;
   }
   return result;
@@ -102,12 +99,12 @@ auto BPlusTreeIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, Ke
 
 template <typename KeyType, typename ValueType>
 auto BPlusTreeIndex<KeyType, ValueType>::Size() const -> size_t {
-  return tree_.size();
+  return size_;
 }
 
 template <typename KeyType, typename ValueType>
 auto BPlusTreeIndex<KeyType, ValueType>::Empty() const -> bool {
-  return tree_.empty();
+  return size_ == 0;
 }
 
 }  // namespace stream

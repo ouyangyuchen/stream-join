@@ -82,9 +82,8 @@ class BroadcastWindow {
     while (!index_r_->Empty() && index_r_->GetOldest().timestamp_ < ts_lower_bound) {
       index_r_->PopOldest();
     }
-    if (!index_r_->Insert(tuple)) {
-      return 0;  // duplicate key, skip
-    }
+
+    index_r_->Insert(tuple);
 
     // get the join results by range search [key - diff, key + diff]
     std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
@@ -109,9 +108,8 @@ class BroadcastWindow {
     while (!index_s_->Empty() && index_s_->GetOldest().timestamp_ < ts_lower_bound) {
       index_s_->PopOldest();
     }
-    if (!index_s_->Insert(tuple)) {
-      return 0;  // duplicate key, skip
-    }
+
+    index_s_->Insert(tuple);
 
     // get the join results by range search [key - diff, key + diff]
     std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);

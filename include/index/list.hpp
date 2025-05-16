@@ -14,7 +14,7 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
   ~ListIndex() override = default;
 
-  auto Insert(const TupleType<KeyType, ValueType> &tuple) -> bool override;
+  void Insert(const TupleType<KeyType, ValueType> &tuple) override;
 
   auto PopOldest() -> TupleType<KeyType, ValueType> override;
 
@@ -33,7 +33,6 @@ class ListIndex : public WindowIndex<KeyType, ValueType> {
 
  private:
   std::deque<TupleType<KeyType, ValueType>> index_;  // list to store tuples in the arrival order
-  std::set<KeyType> key_set_;                        // set to store keys for duplication checking
 };
 
 }  // namespace stream
@@ -45,13 +44,8 @@ const std::string stream::ListIndex<KeyType, ValueType>::Name = "ListIndex";
 // Implementation of ListIndex methods
 
 template <typename KeyType, typename ValueType>
-auto stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) -> bool {
-  if (key_set_.find(tuple.key_) != key_set_.end()) {
-    return false;
-  }
+void stream::ListIndex<KeyType, ValueType>::Insert(const TupleType<KeyType, ValueType> &tuple) {
   index_.push_back(tuple);
-  key_set_.insert(tuple.key_);
-  return true;
 }
 
 template <typename KeyType, typename ValueType>
@@ -61,7 +55,6 @@ auto stream::ListIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, Va
   }
   auto oldest = index_.front();
   index_.pop_front();
-  key_set_.erase(oldest.key_);
   return oldest;
 }
 
