@@ -64,6 +64,7 @@ static void BM_HandshakeJoiner(size_t num_workers) {
 
   stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
                                                                 std::move(r), std::move(s), discard_stream);
+  // joiner.StartWatcher();
 
   auto start_time = std::chrono::high_resolution_clock::now();
   joiner.Start(DIFF);

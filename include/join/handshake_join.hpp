@@ -17,10 +17,10 @@ class HandshakeJoiner {
       : num_workers_(num_workers),
         window_len_(window_len),
         channel_buffer_size_(channel_buffer_size),
-        tuple_reader_(std::move(stream_r), std::move(stream_s)),
+        stream_r_(std::move(stream_r)),
+        stream_s_(std::move(stream_s)),
         size_r_(num_workers_),
         size_s_(num_workers_),
-        PUSH_TUPLE_TOLERANCE(10),  // +n guarantee tuple will be pushed
         os_(os) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
@@ -74,55 +74,77 @@ class HandshakeJoiner {
     }
   }
 
+  void StartWatcher(std::chrono::milliseconds interval = std::chrono::milliseconds(20000)) {
+    auto watcher = std::thread([this, interval]() { Watcher(interval); });
+    watcher.detach();
+  }
+
  private:
-  void Producer() {
+  void Watcher(std::chrono::milliseconds interval) {
     while (true) {
-      auto tuple_opt = tuple_reader_.GetNextTuple();
-      if (!tuple_opt.has_value()) {
-        break;
+      std::this_thread::sleep_for(interval);
+      // print newest and oldest timestamps
+      std::cout << "newest_r_ts_: " << newest_r_ts_ << ", oldest_r_ts_: " << oldest_r_ts_
+                << ", newest_s_ts_: " << newest_s_ts_ << ", oldest_s_ts_: " << oldest_s_ts_ << std::endl;
+      // print the size of each window
+      std::cout << "Size of R workers: ";
+      for (size_t i = 0; i < num_workers_; ++i) {
+        std::cout << size_r_[i].load() << " ";
       }
-      if (tuple_opt->ctl_ == TupleFlag::INPUT_R) {
-        // while (!ShouldPushR(tuple_opt->timestamp_)) {
-        //   // wait for the right end to pop the expired tuples and update the oldest timestamp
-        // }
-        *send_r_chan_ << *tuple_opt;
-      } else if (tuple_opt->ctl_ == TupleFlag::INPUT_S) {
-        // while (!ShouldPushS(tuple_opt->timestamp_)) {
-        //   // wait for the left end to pop the expired tuples and update the oldest timestamp
-        // }
-        *send_s_chan_ << *tuple_opt;
-      } else {
-        throw std::runtime_error("Invalid tuple control flag");
+      std::cout << std::endl;
+      std::cout << "Size of S workers: ";
+      for (size_t i = 0; i < num_workers_; ++i) {
+        std::cout << size_s_[i].load() << " ";
       }
+      std::cout << std::endl;
     }
-    auto eof_r = TupleType<KeyType, ValueType>();
-    eof_r.ctl_ = TupleFlag::EOF_R;
-    *send_r_chan_ << eof_r;
-    auto eof_s = TupleType<KeyType, ValueType>();
-    eof_s.ctl_ = TupleFlag::EOF_S;
-    *send_s_chan_ << eof_s;
-
-    spdlog::debug("Master closes r input channel");
-    send_r_chan_->close();
-    spdlog::debug("Master closes s input channel");
-    send_s_chan_->close();
   }
 
-  auto ShouldPushR(const TsType &timestamp) -> bool {
+  void Producer() {
+    auto producer_routine = [this](ChannelPointer<KeyType, ValueType> send_chan, Stream<KeyType, ValueType> &stream,
+                                   TupleFlag ctl) {
+      assert(send_chan != nullptr);
+      assert(ctl == TupleFlag::INPUT_R || ctl == TupleFlag::INPUT_S);
+      while (!stream.Eof()) {
+        TupleType<KeyType, ValueType> tuple;
+        stream >> tuple;
+        tuple.ctl_ = ctl;
+
+        while ((ctl == TupleFlag::INPUT_S && !ShouldPushS()) || (ctl == TupleFlag::INPUT_R && !ShouldPushR())) {
+        }
+        *send_chan << tuple;
+      }
+      auto eof = TupleType<KeyType, ValueType>();
+      eof.ctl_ = (ctl == TupleFlag::INPUT_R) ? TupleFlag::EOF_R : TupleFlag::EOF_S;
+      *send_chan << eof;
+      send_chan->close();
+      spdlog::debug("Master closes {} input channel", ctl == TupleFlag::INPUT_R ? "r" : "s");
+    };
+    auto producer_r =
+        std::thread([this, producer_routine]() { producer_routine(send_r_chan_, *stream_r_, TupleFlag::INPUT_R); });
+    auto producer_s =
+        std::thread([this, producer_routine]() { producer_routine(send_s_chan_, *stream_s_, TupleFlag::INPUT_S); });
+
+    producer_r.join();
+    producer_s.join();
+  }
+
+  auto ShouldPushR() -> bool {
     TsType upper_bound = oldest_r_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return timestamp <= upper_bound;
+    return newest_r_ts_ <= upper_bound;
   }
 
-  auto ShouldPushS(const TsType &timestamp) -> bool {
+  auto ShouldPushS() -> bool {
     TsType upper_bound = oldest_s_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return timestamp <= upper_bound;
+    return newest_s_ts_ <= upper_bound;
   }
 
   size_t num_workers_;
   size_t window_len_;
   size_t channel_buffer_size_;
 
-  TupleReader<KeyType, ValueType> tuple_reader_;
+  std::unique_ptr<Stream<KeyType, ValueType>> stream_r_;
+  std::unique_ptr<Stream<KeyType, ValueType>> stream_s_;
 
   std::vector<HandshakeWindow<KeyType, ValueType, Container>> windows_;
   std::vector<std::atomic_uint64_t> size_r_;
@@ -134,11 +156,11 @@ class HandshakeJoiner {
   ChannelPointer<KeyType, ValueType> pop_r_chan_;   // pop r tuples from the right most sub-window
   ChannelPointer<KeyType, ValueType> pop_s_chan_;   // pop s tuples from the left most sub-window
 
-  volatile TsType newest_r_ts_{0};    // timestamp of the newest r tuple in the whole windows
-  volatile TsType newest_s_ts_{0};    // timestamp of the newest s tuple in the whole windows
-  volatile TsType oldest_r_ts_{0};    // timestamp of the oldest r tuple popped from the whole windows
-  volatile TsType oldest_s_ts_{0};    // timestamp of the oldest s tuple popped from the whole windows
-  const TsType PUSH_TUPLE_TOLERANCE;  // timestamp tolerance for pushing tuples to the windows
+  volatile TsType newest_r_ts_{0};                   // timestamp of the newest r tuple in the whole windows
+  volatile TsType newest_s_ts_{0};                   // timestamp of the newest s tuple in the whole windows
+  volatile TsType oldest_r_ts_{0};                   // timestamp of the oldest r tuple popped from the whole windows
+  volatile TsType oldest_s_ts_{0};                   // timestamp of the oldest s tuple popped from the whole windows
+  static constexpr TsType PUSH_TUPLE_TOLERANCE{10};  // timestamp tolerance for pushing tuples to the windows
 
   std::ostream &os_;  // output stream for join results
 
