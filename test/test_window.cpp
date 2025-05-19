@@ -29,13 +29,6 @@ struct TestConfig {
 
   static constexpr size_t HANDSHAKE_CHANNEL_BUFFER_SIZE = 128;
   static constexpr size_t HANDSHAKE_WORKERS = 8;
-
-  // random stream
-  static constexpr int64_t KEY_LOW = 0;
-  static constexpr int64_t KEY_HIGH = 100000;
-
-  // broadcast window
-  static constexpr size_t SUB_WINDOW_SIZE = 2;
 };
 
 TEST(WindowTest, BroadcastJoinerBasic) {
@@ -48,10 +41,8 @@ TEST(WindowTest, BroadcastJoinerBasic) {
 
   auto r = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
   auto s = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
-  // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R,
-  //                                                 std::make_pair(TestConfig::KEY_LOW, TestConfig::KEY_HIGH));
-  // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S,
-  //                                                 std::make_pair(TestConfig::KEY_LOW, TestConfig::KEY_HIGH));
+  // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R);
+  // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S);
 
   stream::BroadcastJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
@@ -63,10 +54,8 @@ TEST(WindowTest, BroadcastJoinerBasic) {
 TEST(WindowTest, HandshakeJoiner) {
   auto r = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
   auto s = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
-  // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R,
-  //                                                 std::make_pair(TestConfig::KEY_LOW, TestConfig::KEY_HIGH));
-  // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S,
-  //                                                 std::make_pair(TestConfig::KEY_LOW, TestConfig::KEY_HIGH));
+  // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R);
+  // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S);
 
   stream::HandshakeJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r),

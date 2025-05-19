@@ -35,10 +35,6 @@ using StreamType = stream::RandomStream;
 constexpr int64_t SEQ_START = 0;  // Start of the sequential stream
 constexpr int64_t SEQ_STEP = 1;   // Step size for the sequential stream
 
-// RANDOM STREAM
-constexpr int64_t KEY_LOW = 0;        // Lower bound for key range
-constexpr int64_t KEY_HIGH = 100000;  // Upper bound for key range
-
 // TPC Stream
 const std::string TPC_R_PATH = "../data/tpc-h/orders.tbl";
 constexpr int r_key_column = 2;
@@ -59,8 +55,8 @@ static void BM_HandshakeJoiner(size_t num_workers) {
   // Create streams for each iteration
   // auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
   // auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
-  auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
-  auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
+  auto r = std::make_unique<StreamType>(TUPLES_R);
+  auto s = std::make_unique<StreamType>(TUPLES_S);
 
   stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
                                                                 std::move(r), std::move(s), discard_stream);
@@ -87,8 +83,8 @@ static void BM_BroadcastJoiner(size_t num_workers) {
 
   // auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
   // auto s = std::make_unique<StreamType>(SEQ_START, TUPLES_S, SEQ_STEP);
-  auto r = std::make_unique<StreamType>(TUPLES_R, std::make_pair(KEY_LOW, KEY_HIGH));
-  auto s = std::make_unique<StreamType>(TUPLES_S, std::make_pair(KEY_LOW, KEY_HIGH));
+  auto r = std::make_unique<StreamType>(TUPLES_R);
+  auto s = std::make_unique<StreamType>(TUPLES_S);
 
   stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
                                                                 std::move(r), std::move(s), discard_stream);
@@ -121,7 +117,8 @@ int main(int argc, char **argv) {
   std::cout << "  Join condition difference: " << DIFF << "\n";
   std::cout << "  Channel buffer size: " << CHANNEL_BUFFER_SIZE << "\n";
   std::cout << "  Stream type: " << typeid(StreamType).name() << "\n";
-  std::cout << "  Random Stream key range: [" << KEY_LOW << ", " << KEY_HIGH << "]\n";
+  std::cout << "  Random Stream R key range: [" << 0 << ", " << TUPLES_R << "]\n";
+  std::cout << "  Random Stream S key range: [" << 0 << ", " << TUPLES_S << "]\n";
   std::cout << std::endl;
 
   for (const auto &num_workers : WORKERS) {

@@ -6,7 +6,5 @@ workers: 8
 joiner_type: "handshake"
 index_type: "bplustree"
 stream_type: "random"
-key_low: 100
-key_high: 50000
 watcher_enabled: true
 channel_buffer_size: 256

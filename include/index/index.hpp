@@ -15,6 +15,7 @@ class WindowIndex {
    * @brief Insert a tuple (timestamp + key value) into the index.
    *
    * @param tuple The tuple to be inserted.
+   * @throw std::runtime_error if the key already exists in the index.
    */
   virtual void Insert(const TupleType<KeyType, ValueType> &tuple) = 0;
 

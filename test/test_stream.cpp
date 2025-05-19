@@ -7,8 +7,9 @@
 #include "types/types.hpp"
 
 TEST(StreamTest, RandomStreamBasic) {
-  stream::RandomStream stream(100, {0, 10});
+  stream::RandomStream stream(100);
   stream::TupleType<int64_t, int64_t> tuple;
+  std::set<int64_t> keys;
 
   // Check if the stream is not at EOF
   ASSERT_FALSE(stream.Eof());
@@ -20,7 +21,8 @@ TEST(StreamTest, RandomStreamBasic) {
   // Check if the tuple is valid
   ASSERT_EQ(tuple.timestamp_, 0);
   ASSERT_GE(tuple.key_, 0);
-  ASSERT_LE(tuple.key_, 10);
+  ASSERT_LT(tuple.key_, 100);
+  keys.insert(tuple.key_);
 
   // Check if the stream is not at EOF after reading one tuple
   ASSERT_FALSE(stream.Eof());
@@ -31,8 +33,11 @@ TEST(StreamTest, RandomStreamBasic) {
     stream >> tuple;
     ASSERT_EQ(tuple.timestamp_, i);
     ASSERT_GE(tuple.key_, 0);
-    ASSERT_LE(tuple.key_, 10);
+    ASSERT_LT(tuple.key_, 100);
+    ASSERT_FALSE(keys.count(tuple.key_));  // Check if the key is unique
+    keys.insert(tuple.key_);
   }
+  ASSERT_EQ(keys.size(), 100);  // Check if all keys are unique
 
   // Check if the stream is at EOF after reading all tuples
   ASSERT_FALSE(stream.Available());
@@ -108,10 +113,8 @@ TEST(StreamTest, TupleReader2Streams) {
   num_s_tuples = s_end / s_step;
 
   r_stream = std::make_unique<stream::SequentialStream>(0, r_end, r_step);
-  s_stream = std::make_unique<stream::SequentialStream>(
-      0, s_end, s_step);  // the generation rate of S is less than R
-  auto tuple_reader2 =
-      stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
+  s_stream = std::make_unique<stream::SequentialStream>(0, s_end, s_step);  // the generation rate of S is less than R
+  auto tuple_reader2 = stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
   ts = 0;
   cnt = 0;
   while ((tuple_opt = tuple_reader2.GetNextTuple()).has_value()) {
@@ -125,8 +128,7 @@ TEST(StreamTest, TupleReader2Streams) {
 TEST(StreamTest, TupleReaderSingleStream) {
   // Test with only R stream
   size_t num_tuples = 10;
-  std::unique_ptr<stream::SequentialStream> r_stream =
-      std::make_unique<stream::SequentialStream>(0, num_tuples);
+  std::unique_ptr<stream::SequentialStream> r_stream = std::make_unique<stream::SequentialStream>(0, num_tuples);
   std::unique_ptr<stream::SequentialStream> s_stream = nullptr;
 
   stream::TupleReader<int64_t, int64_t> tuple_reader(std::move(r_stream), std::move(s_stream));
@@ -145,8 +147,7 @@ TEST(StreamTest, TupleReaderSingleStream) {
   num_tuples = 20;
   r_stream = nullptr;
   s_stream = std::make_unique<stream::SequentialStream>(0, num_tuples);
-  auto tuple_reader2 =
-      stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
+  auto tuple_reader2 = stream::TupleReader<int64_t, int64_t>(std::move(r_stream), std::move(s_stream));
   ts = 0;
   cnt = 0;
   while ((tuple_opt = tuple_reader2.GetNextTuple()).has_value()) {

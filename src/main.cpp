@@ -31,10 +31,6 @@ struct Config {
 
   bool watcher_enabled = false;  // Enable or disable watcher for handshake joiner
 
-  // Random stream params
-  KeyType key_low = 0;
-  KeyType key_high = 100000;
-
   // Sequential stream params
   KeyType seq_start = 0;
   KeyType seq_step = 1;
@@ -54,8 +50,6 @@ void print_help(const char *prog_name) {
             << "  --index_type <type>          Index type: 'list' or 'bplustree' (default: bplustree)\n"
             << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
             << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
-            << "  --key_low <val>              For random stream: lower bound for key range (default: 0)\n"
-            << "  --key_high <val>             For random stream: upper bound for key range (default: 100000)\n"
             << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
             << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
             << std::endl;
@@ -118,16 +112,6 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
           config.watcher_enabled = std::stoul(argv[i]);
         else
           throw std::runtime_error("Missing value for --watcher_enabled");
-      } else if (arg == "--key_low") {
-        if (++i < argc)
-          config.key_low = std::stoll(argv[i]);
-        else
-          throw std::runtime_error("Missing value for --key_low");
-      } else if (arg == "--key_high") {
-        if (++i < argc)
-          config.key_high = std::stoll(argv[i]);
-        else
-          throw std::runtime_error("Missing value for --key_high");
       } else if (arg == "--seq_start") {
         if (++i < argc)
           config.seq_start = std::stoll(argv[i]);
@@ -188,7 +172,8 @@ int main(int argc, char *argv[]) {
             << "Tuples R: " << config.tuples_r << ", Tuples S: " << config.tuples_s << "\n"
             << "Channel Buffer Size: " << config.channel_buffer_size << "\n";
   if (config.stream_type == "random") {
-    std::cout << "Key Range: [" << config.key_low << ", " << config.key_high << "]\n";
+    std::cout << "Key Range: R = [" << 0 << ", " << config.tuples_r << "), S = [" << 0 << ", " << config.tuples_s
+              << ")\n";
   } else {
     std::cout << "Seq Start: " << config.seq_start << ", Seq Step: " << config.seq_step << "\n";
   }
@@ -198,8 +183,8 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>> stream_s;
 
   if (config.stream_type == "random") {
-    stream_r = std::make_unique<stream::RandomStream>(config.tuples_r, std::make_pair(config.key_low, config.key_high));
-    stream_s = std::make_unique<stream::RandomStream>(config.tuples_s, std::make_pair(config.key_low, config.key_high));
+    stream_r = std::make_unique<stream::RandomStream>(config.tuples_r);
+    stream_s = std::make_unique<stream::RandomStream>(config.tuples_s);
   } else {  // sequential
     stream_r = std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_r, config.seq_step);
     stream_s = std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_s, config.seq_step);
