@@ -52,8 +52,8 @@ class HandshakeJoiner {
       context.newest_s_ts = &newest_s_ts_;
       context.oldest_r_ts = &oldest_r_ts_;
       context.oldest_s_ts = &oldest_s_ts_;
-      windows_.emplace_back(window_len_, num_workers_, left_input_chan, right_input_chan, left_output_chan,
-                            right_output_chan, context, i, os_);
+      windows_.emplace_back(window_len_, num_workers_, channel_buffer_size_, left_input_chan, right_input_chan,
+                            left_output_chan, right_output_chan, context, i, os_);
     }
   }
 

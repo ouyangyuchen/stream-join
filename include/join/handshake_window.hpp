@@ -49,12 +49,14 @@ class HandshakeWindow {
                 "Container must be derived from Index<KeyType, ValueType>");
 
  public:
-  HandshakeWindow(size_t window_size, size_t num_workers, ChannelPointer<KeyType, ValueType> input_chan_left,
+  HandshakeWindow(size_t window_size, size_t num_workers, size_t channel_buffer_size,
+                  ChannelPointer<KeyType, ValueType> input_chan_left,
                   ChannelPointer<KeyType, ValueType> input_chan_right,
                   ChannelPointer<KeyType, ValueType> output_left_chan,
                   ChannelPointer<KeyType, ValueType> output_right_chan, forward_context forward_context,
                   int32_t id = -1, std::ostream &os = std::cout)
       : window_size_(window_size),
+        channel_buffer_size_(channel_buffer_size),
         output_left_chan_(output_left_chan),
         output_right_chan_(output_right_chan),
         input_left_chan_(input_chan_left),
@@ -248,12 +250,12 @@ class HandshakeWindow {
 
   /**
    * @brief Flush pending tuples to the left/right output channels except when the channels are
-   * almost full.
+   * full.
    */
   void FlushPendings() {
     if (!IsLeftMost() && !output_left_chan_->closed()) {
       while (!pending_list_left_.empty()) {
-        if (output_left_chan_->full(FULL_THRESHOLD)) {
+        if (output_left_chan_->size() == channel_buffer_size_) {
           break;  // avoid full the channel when sending the tuple concurrently
         }
         auto tuple_sent = pending_list_left_.front();
@@ -282,7 +284,7 @@ class HandshakeWindow {
 
     if (!IsRightMost() && !output_right_chan_->closed()) {
       while (!pending_list_right_.empty()) {
-        if (output_right_chan_->full(FULL_THRESHOLD)) {
+        if (output_right_chan_->size() == channel_buffer_size_) {
           break;
         }
         auto tuple_sent = pending_list_right_.front();
@@ -349,12 +351,12 @@ class HandshakeWindow {
   }
 
   const size_t window_size_;
+  const size_t channel_buffer_size_;
 
   ChannelPointer<KeyType, ValueType> output_left_chan_;           // send s tuples to the left
   std::deque<TupleType<KeyType, ValueType>> pending_list_left_;   // pending tuples to be sent
   ChannelPointer<KeyType, ValueType> output_right_chan_;          // send r tuples and ack(s) to the right
   std::deque<TupleType<KeyType, ValueType>> pending_list_right_;  // pending tuples to be sent
-  static constexpr size_t FULL_THRESHOLD{0};                      // threshold for considering the channel is full
 
   ChannelPointer<KeyType, ValueType> input_left_chan_;   // receive r tuples or ack(s) from the left
   ChannelPointer<KeyType, ValueType> input_right_chan_;  // receive s tuples from the right
