@@ -5,6 +5,8 @@
 
 namespace stream {
 
+struct forward_context;
+
 template <typename KeyType, typename ValueType, typename Container>
 class HandshakeJoiner {
   static_assert(std::is_base_of_v<WindowIndex<KeyType, ValueType>, Container>,
@@ -41,11 +43,17 @@ class HandshakeJoiner {
       auto right_output_chan = (i == num_workers_ - 1) ? nullptr : right_direct_channels[i + 1];
       auto left_input_chan = right_direct_channels[i];
       auto right_input_chan = left_direct_channels[i];
-      auto *size_r_right = (i == num_workers_ - 1) ? nullptr : &size_r_[i + 1];
-      auto *size_s_left = (i == 0) ? nullptr : &size_s_[i - 1];
+      forward_context context;
+      context.size_r = &size_r_[i];
+      context.size_s = &size_s_[i];
+      context.size_r_right = (i == num_workers_ - 1) ? nullptr : &size_r_[i + 1];
+      context.size_s_left = (i == 0) ? nullptr : &size_s_[i - 1];
+      context.newest_r_ts = &newest_r_ts_;
+      context.newest_s_ts = &newest_s_ts_;
+      context.oldest_r_ts = &oldest_r_ts_;
+      context.oldest_s_ts = &oldest_s_ts_;
       windows_.emplace_back(window_len_, num_workers_, left_input_chan, right_input_chan, left_output_chan,
-                            right_output_chan, &size_r_[i], &size_s_[i], size_r_right, size_s_left, &newest_r_ts_,
-                            &newest_s_ts_, &oldest_r_ts_, &oldest_s_ts_, i, os_);
+                            right_output_chan, context, i, os_);
     }
   }
 
