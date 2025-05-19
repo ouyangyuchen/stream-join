@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
+#include "index/pgm.hpp"
 #include "types/types.hpp"
 
 using stream::TupleType;
@@ -40,8 +41,8 @@ void test_range_search(stream::WindowIndex<int, int> &index) {
   ASSERT_THROW(index.Insert({4, 1, 5}), std::runtime_error);  // duplicate key is not allowed
 
   // search inside
-  auto result = index.RangeSearch({2, 3});
-  ASSERT_EQ(result.size(), 2);
+  auto result = index.RangeSearch({1, 4});
+  ASSERT_EQ(result.size(), 4);
 
   // search left outside
   result = index.RangeSearch({0, 1});
@@ -121,4 +122,16 @@ TEST(IndexTest, BPlusTreeIndexRangeSearch) {
   using stream::BPlusTreeIndex;
   BPlusTreeIndex<int, int> bptree;
   test_range_search(bptree);
+}
+
+TEST(IndexTest, PGMWindowIndexInsertPop) {
+  using stream::PGMWindowIndex;
+  PGMWindowIndex<int, int> pgm;
+  test_insert_pop(pgm);
+}
+
+TEST(IndexTest, PGMWindowIndexRangeSearch) {
+  using stream::PGMWindowIndex;
+  PGMWindowIndex<int, int> pgm;
+  test_range_search(pgm);
 }

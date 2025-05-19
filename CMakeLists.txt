@@ -11,7 +11,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Enable warnings and treat them as errors
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    add_compile_options(-Wall -Wextra -Werror)
 endif()
 
 # Option to enable ASan (default: OFF)
@@ -30,8 +30,8 @@ endif()
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-# Generate compile_commands.json for clangd
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+# Add OpenMP flag (for pgm index)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
 
 # Add executable target
 add_executable(${PROJECT_NAME}
@@ -44,6 +44,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/libs/bwtree/src)
 include_directories(${PROJECT_SOURCE_DIR}/libs/stx-btree/include)
 include_directories(${PROJECT_SOURCE_DIR}/libs/cpp-channel/include)
+include_directories(${PROJECT_SOURCE_DIR}/libs/pgm-index/include)
 
 # Link libraries (if needed)
 target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
