@@ -3,7 +3,7 @@ import re
 import sys
 import os
 import matplotlib.pyplot as plt
-import numpy as np  # Needed for bar positioning
+import numpy as np
 
 # Regex to capture window index, index r size, and index s size
 index_size_pattern = re.compile(
@@ -20,15 +20,17 @@ window_data = {}
 in_handshake_test = False
 
 # --- Command-line Argument Handling ---
-if len(sys.argv) != 2:
-    print("Usage: python your_script_name.py <log_file_path>")
+if len(sys.argv) != 3:
+    print("Usage: python your_script_name.py <log_file_path> <output_plot_path>")
+    print("Example: python plot_window_data.py log.txt window_data.png")
     sys.exit(1)  # Exit with an error code
 
 log_file_path = sys.argv[1]
+output_plot_path = sys.argv[2]
 
-# Check if the file exists
+# Check if the input log file exists
 if not os.path.exists(log_file_path):
-    print(f"Error: File not found at '{log_file_path}'")
+    print(f"Error: Input log file not found at '{log_file_path}'")
     sys.exit(1)  # Exit with an error code
 
 # --- File Reading and Processing ---
@@ -115,7 +117,7 @@ print(
 print(df_window_data)
 
 # --- Plotting ---
-print("\nGenerating plot...")
+print(f"\nGenerating plot and saving to '{output_plot_path}'...")
 
 # Create figure and primary axes
 fig, ax1 = plt.subplots(figsize=(12, 7))  # Adjust figure size as needed
@@ -129,25 +131,43 @@ bar_width = 0.35
 x_positions = np.arange(len(df_window_data.index))
 
 # Plot r_size bars
-rects1 = ax1.bar(
-    x_positions - bar_width / 2,
-    df_window_data["r_size"],
-    bar_width,
-    label="Index R Size",
-    color="skyblue",
-)
-# Plot s_size bars
-rects2 = ax1.bar(
-    x_positions + bar_width / 2,
-    df_window_data["s_size"],
-    bar_width,
-    label="Index S Size",
-    color="lightcoral",
-)
+# Ensure 'r_size' column exists before plotting
+if "r_size" in df_window_data.columns:
+    rects1 = ax1.bar(
+        x_positions - bar_width / 2,
+        df_window_data["r_size"],
+        bar_width,
+        label="Index R Size",
+        color="skyblue",
+    )
+    ax1.set_ylabel("Index Size", color="blue")
+    ax1.tick_params(axis="y", labelcolor="blue")
+else:
+    print(
+        "Warning: 'r_size' column not found in data. R size bars will not be plotted."
+    )
 
-# Set primary y-axis label
-ax1.set_ylabel("Index Size", color="blue")
-ax1.tick_params(axis="y", labelcolor="blue")
+# Plot s_size bars
+# Ensure 's_size' column exists before plotting
+if "s_size" in df_window_data.columns:
+    rects2 = ax1.bar(
+        x_positions + bar_width / 2,
+        df_window_data["s_size"],
+        bar_width,
+        label="Index S Size",
+        color="lightcoral",
+    )
+    # Only set ylabel and tick_params if r_size wasn't plotted (to avoid overwriting)
+    if "r_size" not in df_window_data.columns:
+        ax1.set_ylabel("Index Size", color="blue")
+        ax1.tick_params(axis="y", labelcolor="blue")
+else:
+    print(
+        "Warning: 's_size' column not found in data. S size bars will not be plotted."
+    )
+
+ax1.set_ylim(bottom=0)
+
 
 # --- Plotting Line (Join Counts) on Secondary Axis (ax2) ---
 # Ensure 'join_count' column exists before plotting
@@ -163,11 +183,14 @@ if "join_count" in df_window_data.columns:
     # Set secondary y-axis label
     ax2.set_ylabel("Join Count", color="forestgreen")
     ax2.tick_params(axis="y", labelcolor="forestgreen")
+    # Set the secondary y-axis to start from 0
+    ax2.set_ylim(bottom=0)
 else:
     print(
         "Warning: 'join_count' column not found in data. Join count line will not be plotted."
     )
     line1 = []  # Empty list if no join count data
+
 
 # --- Common Plot Settings ---
 ax1.set_xlabel("Window Index")
@@ -191,5 +214,13 @@ ax2.legend(handles1 + handles2, labels1 + labels2, loc="upper left")
 
 plt.tight_layout()  # Adjust layout
 
-# Show the plot
-plt.show()
+# --- Save the figure instead of showing ---
+try:
+    plt.savefig(output_plot_path)
+    print(f"Plot successfully saved to '{output_plot_path}'")
+except Exception as e:
+    print(f"Error saving plot to '{output_plot_path}': {e}")
+    sys.exit(1)
+
+# Close the plot figure to free memory
+plt.close(fig)

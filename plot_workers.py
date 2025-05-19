@@ -4,7 +4,7 @@ import sys
 import os
 import matplotlib.pyplot as plt
 import argparse
-import numpy as np  # Import numpy for NaN
+import numpy as np
 
 
 def parse_benchmark_results(file_content):
@@ -82,7 +82,8 @@ def parse_benchmark_results(file_content):
 def plot_throughput_by_workers(df, throughput_column, output_filename=None):
     """
     Plots throughput vs. worker count for different joiner/index type combinations
-    and saves or shows the plot.
+    using consistent line attributes, and saves or shows the plot.
+    Formats 'BPlusTreeIndex' as 'B+ Tree' in the legend.
 
     Args:
         df (pd.DataFrame): The DataFrame containing benchmark results.
@@ -101,14 +102,42 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
         print(f"Error: Column '{throughput_column}' not found in DataFrame.")
         return
 
-    # Filter out rows where the specified throughput column is NaN (e.g., per-window for Handshake)
+    # Filter out rows where the specified throughput column is NaN
     df_plot = df.dropna(subset=[throughput_column]).copy()
 
     if df_plot.empty:
         print(f"No valid data points for '{throughput_column}' to plot.")
         return
 
-    # Get unique combinations of joiner type and index type
+    # Define consistent attributes based on joiner and index type
+    # Line style based on Joiner Type
+    line_styles = {
+        "BroadcastJoiner": "-",  # Solid line for Broadcast
+        "HandshakeJoiner": "--",  # Dashed line for Handshake
+        # Add other joiner types here if needed
+    }
+
+    # Color based on Index Type
+    colors = {
+        "ListIndex": "tab:blue",  # Using default matplotlib colors
+        "BPlusTreeIndex": "tab:orange",  # Using default matplotlib colors
+        # Add other index types here if needed
+    }
+
+    # Marker based on Index Type (optional, but helps distinguish points)
+    markers = {
+        "ListIndex": "o",  # Circle marker
+        "BPlusTreeIndex": "s",  # Square marker
+        # Add other index types here if needed
+    }
+
+    # Mapping for index type names in the legend
+    index_type_legend_names = {
+        "ListIndex": "List",
+        "BPlusTreeIndex": "B+ Tree",
+    }
+
+    # Get unique combinations of joiner type and index type present in the filtered data
     unique_combinations = (
         df_plot[["joiner type", "index type"]].drop_duplicates().values
     )
@@ -131,30 +160,42 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
         # Sort by worker count to ensure the line plot is correct
         df_subset = df_subset.sort_values(by="worker count")
 
-        # Create a clear label for the legend
-        label = f"{joiner_type} {index_type}"
+        # Get the attributes for this combination
+        style = line_styles.get(
+            joiner_type, "-"
+        )  # Default to solid if joiner type is unknown
+        color = colors.get(
+            index_type, "gray"
+        )  # Default to gray if index type is unknown
+        marker = markers.get(index_type, ".")  # Default to dot if index type is unknown
 
-        # Plot the line
+        # Get the legend name for the index type
+        index_legend_name = index_type_legend_names.get(
+            index_type, index_type
+        )  # Use original if not in map
+
+        # Create a clear label for the legend using the formatted index name
+        label = f"{joiner_type}({index_legend_name})"
+
+        # Plot the line with specified attributes
         ax.plot(
             df_subset["worker count"],
             df_subset[throughput_column],
-            marker="o",
-            linestyle="-",
+            marker=marker,
+            linestyle=style,
+            color=color,
             label=label,
         )
 
     # Add plot labels and title
     ax.set_xlabel("Worker Count")
     ax.set_ylabel(throughput_column)
-    # Format y-axis to show k tuples/s instead of raw values
-    ax.yaxis.set_major_formatter(
-        plt.FuncFormatter(lambda x, _: f"{x / 1000:.1f}k" if x >= 1000 else f"{x:.1f}")
-    )
+    # Create a cleaner title by removing the unit part from the column name
     title_throughput_name = throughput_column.replace(" (tuples/s)", "")
     ax.set_title(f"{title_throughput_name} vs. Worker Count by Joiner and Index Type")
 
     # Add a legend to identify the lines
-    ax.legend(title="Joiner/Index Type")
+    ax.legend(title="Join Type (Index Type)")
 
     # Add a grid for better readability
     ax.grid(True, linestyle="--", alpha=0.6)
@@ -266,7 +307,7 @@ If not provided, plots are displayed interactively.""",
             print(
                 f"Warning: Detected unknown joiner type '{joiner}'. Cannot determine plots."
             )
-            sys.exit(1)  # Exit with error for unknown type
+            sys.exit(1)
     elif len(unique_joiners) > 1:
         print(
             f"Detected multiple joiner types: {list(unique_joiners)}. Will plot combined end-to-end throughput."
@@ -274,7 +315,6 @@ If not provided, plots are displayed interactively.""",
         plots_info = [("Combined End to End Throughput", e2e_col)]
         required_outputs = 1
     else:
-        # This case should be caught by the empty DataFrame check earlier, but included for completeness
         print("No joiner types detected in the parsed data.")
         sys.exit(0)
 
