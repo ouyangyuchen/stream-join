@@ -46,7 +46,7 @@ include_directories(${PROJECT_SOURCE_DIR}/libs/stx-btree/include)
 include_directories(${PROJECT_SOURCE_DIR}/libs/cpp-channel/include)
 
 # Link libraries (if needed)
-# target_link_libraries(${PROJECT_NAME} PRIVATE some_library)
+target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
 
 # Install target (optional)
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
