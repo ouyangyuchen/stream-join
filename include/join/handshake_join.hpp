@@ -168,7 +168,7 @@ class HandshakeJoiner {
   volatile TsType newest_s_ts_{0};                   // timestamp of the newest s tuple in the whole windows
   volatile TsType oldest_r_ts_{0};                   // timestamp of the oldest r tuple popped from the whole windows
   volatile TsType oldest_s_ts_{0};                   // timestamp of the oldest s tuple popped from the whole windows
-  static constexpr TsType PUSH_TUPLE_TOLERANCE{10};  // timestamp tolerance for pushing tuples to the windows
+  static constexpr TsType PUSH_TUPLE_TOLERANCE{50};  // timestamp tolerance for pushing tuples to the windows
 
   std::ostream &os_;  // output stream for join results
 

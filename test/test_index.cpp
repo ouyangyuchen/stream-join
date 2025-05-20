@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "index/alexmap.hpp"
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
 #include "index/pgm.hpp"
@@ -134,4 +135,16 @@ TEST(IndexTest, PGMWindowIndexRangeSearch) {
   using stream::PGMWindowIndex;
   PGMWindowIndex<int, int> pgm;
   test_range_search(pgm);
+}
+
+TEST(IndexTest, AlexMapWindowIndexInsertPop) {
+  using stream::AlexMapWindowIndex;
+  AlexMapWindowIndex<int, int> alexmap;
+  test_insert_pop(alexmap);
+}
+
+TEST(IndexTest, AlexMapWindowIndexRangeSearch) {
+  using stream::AlexMapWindowIndex;
+  AlexMapWindowIndex<int, int> alexmap;
+  test_range_search(alexmap);
 }

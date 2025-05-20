@@ -1,3 +1,4 @@
+#include "index/alexmap.hpp"
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
 #include "index/pgm.hpp"
@@ -38,22 +39,23 @@ struct Config {
 };
 
 void print_help(const char *prog_name) {
-  std::cerr << "Usage: " << prog_name << " [options]\n\n"
-            << "Options:\n"
-            << "  --help                       Show this help message and exit\n"
-            << "  --window_size <val>          Window size (default: 50000)\n"
-            << "  --diff <val>                 Join condition difference |r.key - s.key| <= diff (default: 2000)\n"
-            << "  --tuples_r <val>             Number of tuples for stream R (default: 200000)\n"
-            << "  --tuples_s <val>             Number of tuples for stream S (default: 200000)\n"
-            << "  --channel_buffer_size <val>  Buffer size for channels (default: 128)\n"
-            << "  --workers <val>              Number of worker threads (default: 4)\n"
-            << "  --joiner_type <type>         Joiner type: 'handshake' or 'broadcast' (default: handshake)\n"
-            << "  --index_type <type>          Index type: 'list' or 'bplustree' or 'pgm' (default: bplustree)\n"
-            << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
-            << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
-            << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
-            << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
-            << std::endl;
+  std::cerr
+      << "Usage: " << prog_name << " [options]\n\n"
+      << "Options:\n"
+      << "  --help                       Show this help message and exit\n"
+      << "  --window_size <val>          Window size (default: 50000)\n"
+      << "  --diff <val>                 Join condition difference |r.key - s.key| <= diff (default: 2000)\n"
+      << "  --tuples_r <val>             Number of tuples for stream R (default: 200000)\n"
+      << "  --tuples_s <val>             Number of tuples for stream S (default: 200000)\n"
+      << "  --channel_buffer_size <val>  Buffer size for channels (default: 128)\n"
+      << "  --workers <val>              Number of worker threads (default: 4)\n"
+      << "  --joiner_type <type>         Joiner type: 'handshake' or 'broadcast' (default: handshake)\n"
+      << "  --index_type <type>          Index type: 'list' or 'bplustree' or 'pgm' or 'alex' (default: bplustree)\n"
+      << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
+      << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
+      << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
+      << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
+      << std::endl;
 }
 
 bool parse_arguments(int argc, char *argv[], Config &config) {
@@ -138,7 +140,8 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
     std::cerr << "Invalid joiner_type: " << config.joiner_type << std::endl;
     return false;
   }
-  if (config.index_type != "list" && config.index_type != "bplustree" && config.index_type != "pgm") {
+  if (config.index_type != "list" && config.index_type != "bplustree" && config.index_type != "pgm" &&
+      config.index_type != "alex") {
     std::cerr << "Invalid index_type: " << config.index_type << std::endl;
     return false;
   }
@@ -224,6 +227,16 @@ int main(int argc, char *argv[]) {
         joiner.StartWatcher();
       }
       joiner.Start(config.diff);
+    } else if (config.index_type == "alex") {  // alex
+      stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
+                              stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>
+          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
+                 std::move(stream_s));
+      std::cout << "Starting HandshakeJoiner (AlexIndex)..." << std::endl;
+      if (config.watcher_enabled) {
+        joiner.StartWatcher();
+      }
+      joiner.Start(config.diff);
     }
   } else {  // broadcast
     if (config.index_type == "list") {
@@ -245,6 +258,13 @@ int main(int argc, char *argv[]) {
           joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
                  std::move(stream_s));
       std::cout << "Starting BroadcastJoiner (PGMWindowIndex)..." << std::endl;
+      joiner.Start(config.diff);
+    } else if (config.index_type == "alex") {  // alex
+      stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
+                              stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>
+          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
+                 std::move(stream_s));
+      std::cout << "Starting BroadcastJoiner (AlexIndex)..." << std::endl;
       joiner.Start(config.diff);
     }
   }

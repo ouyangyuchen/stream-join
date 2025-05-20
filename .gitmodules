@@ -10,3 +10,6 @@
 [submodule "libs/pgm-index"]
 	path = libs/pgm-index
 	url = https://github.com/gvinciguerra/PGM-index.git
+[submodule "libs/alex-map"]
+	path = libs/alex-map
+	url = https://github.com/microsoft/ALEX.git

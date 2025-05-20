@@ -5,6 +5,7 @@
 #include <thread>
 #include <utility>
 
+#include "index/alexmap.hpp"
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
 #include "index/pgm.hpp"
@@ -45,7 +46,7 @@ TEST(JoinTest, BroadcastJoinerBasic) {
   // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R);
   // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S);
 
-  stream::BroadcastJoiner<int64_t, int64_t, stream::PGMWindowIndex<int64_t, int64_t>> joiner(
+  stream::BroadcastJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
       std::move(s), std::cout);
 
@@ -62,6 +63,7 @@ TEST(JoinTest, HandshakeJoiner) {
       TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r),
       std::move(s), std::cout);
 
+  // joiner.StartWatcher();
   joiner.Start(TestConfig::DIFF);
 
   decorator::printAllDurations();
