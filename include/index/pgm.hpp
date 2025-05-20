@@ -26,10 +26,15 @@ class PGMWindowIndex : public WindowIndex<KeyType, ValueType> {
 
   auto Empty() const -> bool override;
 
+  const static std::string Name;
+
  private:
   pgm::DynamicPGMIndex<KeyType, TupleType<KeyType, ValueType> *> index_;  // for searching, get the pointer to the tuple
   std::list<TupleType<KeyType, ValueType>> arrival_list_;                 // for maintaining the order of arrival
 };
+
+template <typename KeyType, typename ValueType>
+const std::string PGMWindowIndex<KeyType, ValueType>::Name = "PGMWindowIndex";
 
 template <typename KeyType, typename ValueType>
 PGMWindowIndex<KeyType, ValueType>::PGMWindowIndex() : index_() {}

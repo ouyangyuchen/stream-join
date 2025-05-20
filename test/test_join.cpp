@@ -7,6 +7,7 @@
 
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
+#include "index/pgm.hpp"
 #include "join/broadcast_join.hpp"
 #include "join/handshake_join.hpp"
 #include "msd/channel.hpp"
@@ -31,7 +32,7 @@ struct TestConfig {
   static constexpr size_t HANDSHAKE_WORKERS = 8;
 };
 
-TEST(WindowTest, BroadcastJoinerBasic) {
+TEST(JoinTest, BroadcastJoinerBasic) {
   // the **single-master** model of broadcast join should partition S stream just like not
   // partitioning, which is the same as using a single sub-window
   // -> the sum of all join results should be equal to the result of the BroadcastWindowBasic
@@ -44,14 +45,14 @@ TEST(WindowTest, BroadcastJoinerBasic) {
   // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R);
   // auto s = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_S);
 
-  stream::BroadcastJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
+  stream::BroadcastJoiner<int64_t, int64_t, stream::PGMWindowIndex<int64_t, int64_t>> joiner(
       TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
       std::move(s), std::cout);
 
   joiner.Start(TestConfig::DIFF);
 }
 
-TEST(WindowTest, HandshakeJoiner) {
+TEST(JoinTest, HandshakeJoiner) {
   auto r = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_R);
   auto s = std::make_unique<stream::SequentialStream>(0, TestConfig::TUPLES_S);
   // auto r = std::make_unique<stream::RandomStream>(TestConfig::TUPLES_R);

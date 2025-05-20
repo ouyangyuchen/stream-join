@@ -16,8 +16,8 @@ extract_join_sum() {
 }
 
 # Get sums for both tests
-broadcast_sum=$(extract_join_sum "WindowTest.BroadcastJoinerBasic" "Join count: [0-9]+")
-handshake_sum=$(extract_join_sum "WindowTest.HandshakeJoiner" "join count: [0-9]+")
+broadcast_sum=$(extract_join_sum "JoinTest.BroadcastJoinerBasic" "Join count: [0-9]+")
+handshake_sum=$(extract_join_sum "JoinTest.HandshakeJoiner" "join count: [0-9]+")
 
 # Check if we got valid numbers
 if ! [[ "$broadcast_sum" =~ ^[0-9]+$ ]] || ! [[ "$handshake_sum" =~ ^[0-9]+$ ]]; then

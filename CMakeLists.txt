@@ -70,7 +70,7 @@ add_executable(unit_test
     test/test_main.cpp
     test/test_index.cpp
     test/test_stream.cpp
-    test/test_window.cpp
+    test/test_join.cpp
     src/decorator.cpp
 )
 

@@ -1,5 +1,6 @@
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
+#include "index/pgm.hpp"
 #include "join/broadcast_join.hpp"
 #include "join/handshake_join.hpp"
 #include "stream/random_stream.hpp"
@@ -47,7 +48,7 @@ void print_help(const char *prog_name) {
             << "  --channel_buffer_size <val>  Buffer size for channels (default: 128)\n"
             << "  --workers <val>              Number of worker threads (default: 4)\n"
             << "  --joiner_type <type>         Joiner type: 'handshake' or 'broadcast' (default: handshake)\n"
-            << "  --index_type <type>          Index type: 'list' or 'bplustree' (default: bplustree)\n"
+            << "  --index_type <type>          Index type: 'list' or 'bplustree' or 'pgm' (default: bplustree)\n"
             << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
             << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
             << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
@@ -137,7 +138,7 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
     std::cerr << "Invalid joiner_type: " << config.joiner_type << std::endl;
     return false;
   }
-  if (config.index_type != "list" && config.index_type != "bplustree") {
+  if (config.index_type != "list" && config.index_type != "bplustree" && config.index_type != "pgm") {
     std::cerr << "Invalid index_type: " << config.index_type << std::endl;
     return false;
   }
@@ -203,12 +204,22 @@ int main(int argc, char *argv[]) {
         joiner.StartWatcher();
       }
       joiner.Start(config.diff);
-    } else {  // bplustree
+    } else if (config.index_type == "bplustree") {  // bplustree
       stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
                               stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>
           joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
                  std::move(stream_s));
       std::cout << "Starting HandshakeJoiner (BPlusTreeIndex)..." << std::endl;
+      if (config.watcher_enabled) {
+        joiner.StartWatcher();
+      }
+      joiner.Start(config.diff);
+    } else if (config.index_type == "pgm") {  // pgm
+      stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
+                              stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>
+          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
+                 std::move(stream_s));
+      std::cout << "Starting HandshakeJoiner (PGMWindowIndex)..." << std::endl;
       if (config.watcher_enabled) {
         joiner.StartWatcher();
       }
@@ -221,12 +232,19 @@ int main(int argc, char *argv[]) {
                  std::move(stream_s));
       std::cout << "Starting BroadcastJoiner (ListIndex)..." << std::endl;
       joiner.Start(config.diff);
-    } else {  // bplustree
+    } else if (config.index_type == "bplustree") {  // bplustree
       stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
                               stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>
           joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
                  std::move(stream_s));
       std::cout << "Starting BroadcastJoiner (BPlusTreeIndex)..." << std::endl;
+      joiner.Start(config.diff);
+    } else if (config.index_type == "pgm") {  // pgm
+      stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
+                              stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>
+          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
+                 std::move(stream_s));
+      std::cout << "Starting BroadcastJoiner (PGMWindowIndex)..." << std::endl;
       joiner.Start(config.diff);
     }
   }
