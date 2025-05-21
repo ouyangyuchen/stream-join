@@ -121,7 +121,7 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
     colors = {
         "ListIndex": "tab:blue",  # Using default matplotlib colors
         "BPlusTreeIndex": "tab:orange",  # Using default matplotlib colors
-        # Add other index types here if needed
+        "AlexMapWindowIndex": "tab:green",
     }
 
     # Marker based on Index Type (optional, but helps distinguish points)
@@ -135,6 +135,7 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
     index_type_legend_names = {
         "ListIndex": "List",
         "BPlusTreeIndex": "B+ Tree",
+        "AlexMapWindowIndex": "Alex Map",
     }
 
     # Get unique combinations of joiner type and index type present in the filtered data
