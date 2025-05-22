@@ -202,6 +202,9 @@ void RunHandshake() {
 
   stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(
       config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
+  if (config.preload) {
+    joiner.Preload();
+  }
   if (config.watcher_enabled) {
     joiner.StartWatcher(config.watcher_interval);
   }

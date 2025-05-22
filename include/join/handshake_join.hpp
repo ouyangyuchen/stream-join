@@ -87,10 +87,37 @@ class HandshakeJoiner {
     watcher.detach();
   }
 
+  void Preload() {
+    size_t avg_preload_r = window_len_ / num_workers_;
+    size_t avg_preload_s = window_len_ / num_workers_;
+    // preload R from rightmost sub-window to leftmost sub-window in the chronological order
+    for (int i = num_workers_ - 1; i >= 0; --i) {
+      for (size_t j = 0; j < avg_preload_r; ++j) {
+        TupleType<KeyType, ValueType> tuple;
+        *stream_r_ >> tuple;
+        tuple.ctl_ = TupleFlag::INPUT_R;
+        windows_[i].index_r_->Insert(tuple);
+        newest_r_ts_ = tuple.timestamp_;
+      }
+      size_r_[i].store(windows_[i].index_r_->Size());
+    }
+    // preload S from leftmost sub-window to rightmost sub-window in the chronological order
+    for (int i = 0; i < int(num_workers_); ++i) {
+      for (size_t j = 0; j < avg_preload_s; ++j) {
+        TupleType<KeyType, ValueType> tuple;
+        *stream_s_ >> tuple;
+        tuple.ctl_ = TupleFlag::INPUT_S;
+        windows_[i].index_s_->Insert(tuple);
+        newest_s_ts_ = tuple.timestamp_;
+      }
+      size_s_[i].store(windows_[i].index_s_->Size());
+    }
+    spdlog::info("Preloaded {} tuples from R and {} tuples from S for each worker", avg_preload_r, avg_preload_s);
+  }
+
  private:
   void Watcher(std::chrono::milliseconds interval) {
     while (true) {
-      std::this_thread::sleep_for(interval);
       // print newest and oldest timestamps
       std::cout << "newest_r_ts_: " << newest_r_ts_ << ", oldest_r_ts_: " << oldest_r_ts_
                 << ", newest_s_ts_: " << newest_s_ts_ << ", oldest_s_ts_: " << oldest_s_ts_ << std::endl;
@@ -105,6 +132,7 @@ class HandshakeJoiner {
         std::cout << size_s_[i].load() << " ";
       }
       std::cout << std::endl;
+      std::this_thread::sleep_for(interval);
     }
   }
 

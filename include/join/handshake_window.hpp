@@ -34,6 +34,9 @@ struct forward_context {
   volatile TsType *oldest_s_ts;  // the timestamp of the last s tuple popped from the left-most sub-window
 };
 
+template <typename KeyType, typename ValueType, typename Container>
+class HandshakeJoiner;
+
 /**
  * @brief HandshakeWindow class.
  * @details The HandshakeWindow class maintains index of 2 streams (R, S). When it receives a tuple
@@ -47,6 +50,7 @@ template <typename KeyType, typename ValueType, typename Container>
 class HandshakeWindow {
   static_assert(std::is_base_of_v<WindowIndex<KeyType, ValueType>, Container>,
                 "Container must be derived from Index<KeyType, ValueType>");
+  friend class HandshakeJoiner<KeyType, ValueType, Container>;
 
  public:
   HandshakeWindow(size_t window_size, size_t num_workers, size_t channel_buffer_size,
@@ -274,8 +278,8 @@ class HandshakeWindow {
       for (auto &tuple_del : pending_list_left_) {
         tuple_del.forwarded_ = true;  // for assertion check
         TsType oldest_s_ts = tuple_del.timestamp_;
-        assert(tuple_del.timestamp_ <= *newest_s_ts_);
-        assert(!TimeStampMatched(*newest_r_ts_, tuple_del.timestamp_));
+        assert(tuple_del.timestamp_ <= *forward_context_.newest_s_ts);
+        assert(!TimeStampMatched(*forward_context_.newest_r_ts, tuple_del.timestamp_));
         ProcessAck(tuple_del);
         *(forward_context_.oldest_s_ts) = oldest_s_ts;
       }
@@ -314,8 +318,8 @@ class HandshakeWindow {
         }
         auto tuple_del = index_r_->PopOldest();
         forward_context_.size_r->store(index_r_->Size());
-        assert(tuple_del.timestamp_ <= *newest_r_ts_);
-        assert(!TimeStampMatched(tuple.timestamp_, *newest_s_ts_));
+        assert(tuple_del.timestamp_ <= *forward_context_.newest_r_ts);
+        assert(!TimeStampMatched(tuple.timestamp_, *forward_context_.newest_s_ts));
         *(forward_context_.oldest_r_ts) = tuple_del.timestamp_;
       }
       pending_list_right_.clear();
