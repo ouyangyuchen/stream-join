@@ -18,7 +18,7 @@ class BroadcastJoiner {
  public:
   BroadcastJoiner(size_t num_workers, size_t window_size, size_t channel_buffer_size,
                   std::unique_ptr<Stream<KeyType, ValueType>> R, std::unique_ptr<Stream<KeyType, ValueType>> S,
-                  bool preload = false, std::ostream &os = std::cout)
+                  std::ostream &os = std::cout)
       : num_workers_(num_workers),
         window_size_(window_size),
         channel_buffer_size_(channel_buffer_size),
@@ -32,10 +32,6 @@ class BroadcastJoiner {
     for (size_t i = 0; i < num_workers_; ++i) {
       channels_[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
       subwindows_.emplace_back(window_size_, window_size_, channels_[i], i, os);
-    }
-
-    if (preload) {
-      Preload();
     }
   }
 

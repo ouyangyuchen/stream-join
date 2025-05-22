@@ -177,14 +177,16 @@ template <typename KeyType, typename ValueType, typename IndexType>
 void RunBroadcast() {
   auto [stream_r, stream_s] = GetStreams();
 
-  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(config.workers, config.window_size,
-                                                                config.channel_buffer_size, std::move(stream_r),
-                                                                std::move(stream_s), config.preload);
-  std::cout << "Starting BroadcastJoiner/" << IndexType::Name << " ..." << std::endl;
+  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(
+      config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
+  if (config.preload) {
+    joiner.Preload();
+  }
   if (config.watcher_enabled) {
     joiner.StartWatcher(config.watcher_interval);
   }
 
+  std::cout << "Starting BroadcastJoiner/" << IndexType::Name << " ..." << std::endl;
   auto start_time = std::chrono::high_resolution_clock::now();
   joiner.Start(config.diff);
   auto end_time = std::chrono::high_resolution_clock::now();
@@ -200,11 +202,11 @@ void RunHandshake() {
 
   stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(
       config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
-  std::cout << "Starting HandshakeJoiner/" << IndexType::Name << " ..." << std::endl;
   if (config.watcher_enabled) {
     joiner.StartWatcher(config.watcher_interval);
   }
 
+  std::cout << "Starting HandshakeJoiner/" << IndexType::Name << " ..." << std::endl;
   auto start_time = std::chrono::high_resolution_clock::now();
   joiner.Start(config.diff);
   auto end_time = std::chrono::high_resolution_clock::now();
