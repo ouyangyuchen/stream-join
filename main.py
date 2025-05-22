@@ -23,6 +23,7 @@ def build_cpp_args(config_data):
         "stream_type": "--stream_type",
         "preload": "--preload",
         "watcher_enabled": "--watcher_enabled",
+        "watcher_interval": "--watcher_interval",
         "key_low": "--key_low",
         "key_high": "--key_high",
         "seq_start": "--seq_start",
