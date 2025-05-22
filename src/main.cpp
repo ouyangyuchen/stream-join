@@ -32,11 +32,12 @@ struct Config {
   std::string stream_type = "random";     // "random" or "sequential"
 
   bool watcher_enabled = false;  // Enable or disable watcher for handshake joiner
+  std::chrono::milliseconds watcher_interval = std::chrono::milliseconds(10000);
 
   // Sequential stream params
   KeyType seq_start = 0;
   KeyType seq_step = 1;
-};
+} config;
 
 void print_help(const char *prog_name) {
   std::cerr
@@ -53,12 +54,13 @@ void print_help(const char *prog_name) {
       << "  --index_type <type>          Index type: 'list' or 'bplustree' or 'pgm' or 'alex' (default: bplustree)\n"
       << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
       << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
+      << "  --watcher_interval <val>     Watcher interval in milliseconds (default: 10000)\n"
       << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
       << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
       << std::endl;
 }
 
-bool parse_arguments(int argc, char *argv[], Config &config) {
+bool parse_arguments(int argc, char *argv[]) {
   for (int i = 1; i < argc; ++i) {
     std::string arg = argv[i];
     try {
@@ -115,6 +117,11 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
           config.watcher_enabled = std::stoul(argv[i]);
         else
           throw std::runtime_error("Missing value for --watcher_enabled");
+      } else if (arg == "--watcher_interval") {
+        if (++i < argc)
+          config.watcher_interval = std::chrono::milliseconds(std::stoul(argv[i]));
+        else
+          throw std::runtime_error("Missing value for --watcher_interval");
       } else if (arg == "--seq_start") {
         if (++i < argc)
           config.seq_start = std::stoll(argv[i]);
@@ -135,16 +142,6 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
     }
   }
 
-  // Validate choices
-  if (config.joiner_type != "handshake" && config.joiner_type != "broadcast") {
-    std::cerr << "Invalid joiner_type: " << config.joiner_type << std::endl;
-    return false;
-  }
-  if (config.index_type != "list" && config.index_type != "bplustree" && config.index_type != "pgm" &&
-      config.index_type != "alex") {
-    std::cerr << "Invalid index_type: " << config.index_type << std::endl;
-    return false;
-  }
   if (config.stream_type != "random" && config.stream_type != "sequential") {
     std::cerr << "Invalid stream_type: " << config.stream_type << std::endl;
     return false;
@@ -157,9 +154,59 @@ bool parse_arguments(int argc, char *argv[], Config &config) {
   return true;
 }
 
+auto GetStreams() -> std::pair<std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>>,
+                               std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>>> {
+  if (config.stream_type == "random") {
+    return {std::make_unique<stream::RandomStream>(config.tuples_r),
+            std::make_unique<stream::RandomStream>(config.tuples_s)};
+  } else {  // sequential
+    return {std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_r, config.seq_step),
+            std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_s, config.seq_step)};
+  }
+}
+
+template <typename KeyType, typename ValueType, typename IndexType>
+void RunBroadcast() {
+  auto [stream_r, stream_s] = GetStreams();
+
+  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(
+      config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
+  std::cout << "Starting BroadcastJoiner/" << IndexType::Name << " ..." << std::endl;
+  if (config.watcher_enabled) {
+    joiner.StartWatcher(config.watcher_interval);
+  }
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+  joiner.Start(config.diff);
+  auto end_time = std::chrono::high_resolution_clock::now();
+
+  auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+  std::cout << "\nJoin operation completed." << std::endl;
+  std::cout << "Total execution time: " << duration_ms << " ms" << std::endl;
+}
+
+template <typename KeyType, typename ValueType, typename IndexType>
+void RunHandshake() {
+  auto [stream_r, stream_s] = GetStreams();
+
+  stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(
+      config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
+  std::cout << "Starting HandshakeJoiner/" << IndexType::Name << " ..." << std::endl;
+  if (config.watcher_enabled) {
+    joiner.StartWatcher(config.watcher_interval);
+  }
+
+  auto start_time = std::chrono::high_resolution_clock::now();
+  joiner.Start(config.diff);
+  auto end_time = std::chrono::high_resolution_clock::now();
+
+  auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
+  std::cout << "\nJoin operation completed." << std::endl;
+  std::cout << "Total execution time: " << duration_ms << " ms" << std::endl;
+}
+
 int main(int argc, char *argv[]) {
-  Config config;
-  if (!parse_arguments(argc, argv, config)) {
+  if (!parse_arguments(argc, argv)) {
     return (argc == 2 && std::string(argv[1]) == "--help") ? 0 : 1;
   }
 
@@ -183,96 +230,40 @@ int main(int argc, char *argv[]) {
   }
   std::cout << "---------------------\n" << std::endl;
 
-  std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>> stream_r;
-  std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>> stream_s;
-
-  if (config.stream_type == "random") {
-    stream_r = std::make_unique<stream::RandomStream>(config.tuples_r);
-    stream_s = std::make_unique<stream::RandomStream>(config.tuples_s);
-  } else {  // sequential
-    stream_r = std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_r, config.seq_step);
-    stream_s = std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_s, config.seq_step);
-  }
-
   std::cout << "Initializing joiner..." << std::endl;
-  auto start_time = std::chrono::high_resolution_clock::now();
 
   if (config.joiner_type == "handshake") {
     if (config.index_type == "list") {
-      stream::HandshakeJoiner<Config::KeyType, Config::ValueType, stream::ListIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting HandshakeJoiner (ListIndex)..." << std::endl;
-      if (config.watcher_enabled) {
-        joiner.StartWatcher();
-      }
-      joiner.Start(config.diff);
+      RunHandshake<Config::KeyType, Config::ValueType, stream::ListIndex<Config::KeyType, Config::ValueType>>();
     } else if (config.index_type == "bplustree") {  // bplustree
-      stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
-                              stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting HandshakeJoiner (BPlusTreeIndex)..." << std::endl;
-      if (config.watcher_enabled) {
-        joiner.StartWatcher();
-      }
-      joiner.Start(config.diff);
+      RunHandshake<Config::KeyType, Config::ValueType, stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>();
     } else if (config.index_type == "pgm") {  // pgm
-      stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
-                              stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting HandshakeJoiner (PGMWindowIndex)..." << std::endl;
-      if (config.watcher_enabled) {
-        joiner.StartWatcher();
-      }
-      joiner.Start(config.diff);
+      RunHandshake<Config::KeyType, Config::ValueType, stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>();
     } else if (config.index_type == "alex") {  // alex
-      stream::HandshakeJoiner<Config::KeyType, Config::ValueType,
-                              stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting HandshakeJoiner (AlexIndex)..." << std::endl;
-      if (config.watcher_enabled) {
-        joiner.StartWatcher();
-      }
-      joiner.Start(config.diff);
+      RunHandshake<Config::KeyType, Config::ValueType,
+                   stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>();
+    } else {
+      std::cerr << "Invalid index type: " << config.index_type << std::endl;
+      return 1;
     }
-  } else {  // broadcast
+  } else if (config.joiner_type == "broadcast") {
     if (config.index_type == "list") {
-      stream::BroadcastJoiner<Config::KeyType, Config::ValueType, stream::ListIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting BroadcastJoiner (ListIndex)..." << std::endl;
-      joiner.Start(config.diff);
-    } else if (config.index_type == "bplustree") {  // bplustree
-      stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
-                              stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting BroadcastJoiner (BPlusTreeIndex)..." << std::endl;
-      joiner.Start(config.diff);
-    } else if (config.index_type == "pgm") {  // pgm
-      stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
-                              stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting BroadcastJoiner (PGMWindowIndex)..." << std::endl;
-      joiner.Start(config.diff);
-    } else if (config.index_type == "alex") {  // alex
-      stream::BroadcastJoiner<Config::KeyType, Config::ValueType,
-                              stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>
-          joiner(config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r),
-                 std::move(stream_s));
-      std::cout << "Starting BroadcastJoiner (AlexIndex)..." << std::endl;
-      joiner.Start(config.diff);
+      RunBroadcast<Config::KeyType, Config::ValueType, stream::ListIndex<Config::KeyType, Config::ValueType>>();
+    } else if (config.index_type == "bplustree") {
+      RunBroadcast<Config::KeyType, Config::ValueType, stream::BPlusTreeIndex<Config::KeyType, Config::ValueType>>();
+    } else if (config.index_type == "pgm") {
+      RunBroadcast<Config::KeyType, Config::ValueType, stream::PGMWindowIndex<Config::KeyType, Config::ValueType>>();
+    } else if (config.index_type == "alex") {
+      RunBroadcast<Config::KeyType, Config::ValueType,
+                   stream::AlexMapWindowIndex<Config::KeyType, Config::ValueType>>();
+    } else {
+      std::cerr << "Invalid index type: " << config.index_type << std::endl;
+      return 1;
     }
+  } else {
+    std::cerr << "Invalid joiner type: " << config.joiner_type << std::endl;
+    return 1;
   }
-
-  auto end_time = std::chrono::high_resolution_clock::now();
-  auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-  std::cout << "\nJoin operation completed." << std::endl;
-  std::cout << "Total execution time: " << duration_ms << " ms" << std::endl;
 
   // decorator::printAllDurations(); // If you want to print detailed internal durations
 

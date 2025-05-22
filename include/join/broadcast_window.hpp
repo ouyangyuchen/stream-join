@@ -14,6 +14,9 @@
 
 namespace stream {
 
+template <typename KeyType, typename ValueType, typename Container>
+class BroadcastJoiner;
+
 /**
  * @brief BroadcastWindow class.
  * @details The BroadcastWindow class is used in the broadcast join that
@@ -23,6 +26,8 @@ namespace stream {
  */
 template <typename KeyType, typename ValueType, typename Container>
 class BroadcastWindow {
+  friend class BroadcastJoiner<KeyType, ValueType, Container>;
+
  public:
   /**
    * @brief Constructor of BroadcastWindow.

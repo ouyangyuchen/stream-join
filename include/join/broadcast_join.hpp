@@ -33,6 +33,30 @@ class BroadcastJoiner {
       channels_[i] = std::make_shared<Channel<KeyType, ValueType>>(channel_buffer_size_);
       subwindows_.emplace_back(window_size_, window_size_, channels_[i], i, os);
     }
+
+    // preload the tuples into the index of subwindows
+    size_t count_r = 0;
+    size_t count_s = 0;
+    while (count_r < window_size_ && count_s < window_size_) {
+      auto tuple_opt = tuple_reader_.GetNextTuple();
+      if (!tuple_opt.has_value()) {
+        throw std::runtime_error("No more tuples available during preloading");
+      }
+      auto &tuple = tuple_opt.value();
+      if (tuple.ctl_ == TupleFlag::INPUT_R) {
+        count_r++;
+        for (size_t i = 0; i < num_workers_; ++i) {
+          subwindows_[i].index_r_->Insert(tuple);
+        }
+      } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
+        count_s++;
+        size_t sub_window_index = GetSubWindowIndex(tuple);
+        subwindows_[sub_window_index].index_s_->Insert(tuple);
+      } else {
+        throw std::runtime_error("Invalid tuple control flag");
+      }
+    }
+    spdlog::info("Preloaded {} tuples from R and {} tuples from S", count_r, count_s);
   }
 
   ~BroadcastJoiner() {}
@@ -61,6 +85,11 @@ class BroadcastJoiner {
     if (master_thread_.joinable()) {
       master_thread_.join();
     }
+  }
+
+  void StartWatcher(std::chrono::milliseconds interval) {
+    std::thread watcher_thread([this, interval]() { WatcherRoutine(interval); });
+    watcher_thread.detach();
   }
 
  private:
@@ -102,6 +131,22 @@ class BroadcastJoiner {
   auto GetSubWindowIndex(const TupleType<KeyType, ValueType> &tuple) -> size_t {
     // load balancing rule: round robin / hashing
     return tuple.timestamp_ % num_workers_;
+  }
+
+  void WatcherRoutine(std::chrono::milliseconds interval) {
+    while (true) {
+      std::cout << "Size of R workers: ";
+      for (size_t i = 0; i < num_workers_; ++i) {
+        std::cout << subwindows_[i].index_r_->Size() << " ";
+      }
+      std::cout << std::endl;
+      std::cout << "Size of S workers: ";
+      for (size_t i = 0; i < num_workers_; ++i) {
+        std::cout << subwindows_[i].index_s_->Size() << " ";
+      }
+      std::cout << std::endl;
+      std::this_thread::sleep_for(interval);  // print preloading result
+    }
   }
 
   const size_t num_workers_{};          // number of consumer threads == number of subwindows
