@@ -1,10 +1,11 @@
-window_size: 60000
+window_size: 80000
 diff: 100
 tuples_r: 1000000 # Reduced for quicker test
 tuples_s: 1000000 # Reduced for quicker test
 workers: 8
-joiner_type: "handshake"
+joiner_type: "broadcast"
 index_type: "bplustree"
 stream_type: "random"
-watcher_enabled: true
+watcher_enabled: 1
 channel_buffer_size: 256
+preload: 1

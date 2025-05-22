@@ -20,6 +20,7 @@ def build_cpp_args(config_data):
         "joiner_type": "--joiner_type",
         "index_type": "--index_type",
         "stream_type": "--stream_type",
+        "preload": "--preload",
         "watcher_enabled": "--watcher_enabled",
         "key_low": "--key_low",
         "key_high": "--key_high",
