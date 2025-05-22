@@ -1,5 +1,6 @@
 import yaml
 import subprocess
+import signal
 import sys
 import os
 
@@ -90,6 +91,34 @@ def run_cpp_program(config_path, executable_path):
 
         if process.returncode != 0:
             print(f"\n--- C++ Program exited with error code: {process.returncode} ---")
+
+    except KeyboardInterrupt:
+        print(
+            "\n--- Keyboard interrupt received, attempting to terminate C++ program ---"
+        )
+        if process and process.poll() is None:  # Check if process exists and is running
+            print("Sending SIGINT to C++ process...")
+            process.send_signal(signal.SIGINT)
+            try:
+                # Wait for a short period to allow graceful shutdown
+                process.wait(timeout=3)  # seconds
+                print("--- C++ Program terminated after SIGINT ---")
+            except subprocess.TimeoutExpired:
+                print(
+                    "C++ process did not terminate with SIGINT in time. Sending SIGKILL..."
+                )
+                process.kill()  # Force kill if it doesn't respond to SIGINT
+                process.wait()  # Ensure it's reaped
+                print("--- C++ Program terminated by SIGKILL ---")
+            except Exception as e_terminate:
+                print(
+                    f"An error occurred while trying to terminate the C++ program: {e_terminate}"
+                )
+        else:
+            print(
+                "--- C++ Program was not running or already terminated when interrupt occurred ---"
+            )
+        sys.exit(130)  # Standard exit code for process interrupted by Ctrl+C
 
     except FileNotFoundError:
         print(
