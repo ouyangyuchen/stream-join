@@ -34,6 +34,8 @@ struct Config {
   bool watcher_enabled = false;  // Enable or disable watcher for handshake joiner
   std::chrono::milliseconds watcher_interval = std::chrono::milliseconds(10000);
 
+  bool preload = false;  // Preload tuples into the index in the constructor of joiner
+
   // Sequential stream params
   KeyType seq_start = 0;
   KeyType seq_step = 1;
@@ -53,7 +55,8 @@ void print_help(const char *prog_name) {
       << "  --joiner_type <type>         Joiner type: 'handshake' or 'broadcast' (default: handshake)\n"
       << "  --index_type <type>          Index type: 'list' or 'bplustree' or 'pgm' or 'alex' (default: bplustree)\n"
       << "  --stream_type <type>         Stream type: 'random' or 'sequential' (default: random)\n"
-      << "  --watcher_enabled <val>       Enable watcher (default: false)\n"
+      << "  --preload <val>              Preload tuples into the index (default: false)\n"
+      << "  --watcher_enabled <val>      Enable watcher (default: false)\n"
       << "  --watcher_interval <val>     Watcher interval in milliseconds (default: 10000)\n"
       << "  --seq_start <val>            For sequential stream: start key (default: 0)\n"
       << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
@@ -112,6 +115,11 @@ bool parse_arguments(int argc, char *argv[]) {
           config.stream_type = argv[i];
         else
           throw std::runtime_error("Missing value for --stream_type");
+      } else if (arg == "--preload") {
+        if (++i < argc)
+          config.preload = std::stoul(argv[i]);
+        else
+          throw std::runtime_error("Missing value for --preload");
       } else if (arg == "--watcher_enabled") {
         if (++i < argc)
           config.watcher_enabled = std::stoul(argv[i]);
@@ -169,8 +177,9 @@ template <typename KeyType, typename ValueType, typename IndexType>
 void RunBroadcast() {
   auto [stream_r, stream_s] = GetStreams();
 
-  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(
-      config.workers, config.window_size, config.channel_buffer_size, std::move(stream_r), std::move(stream_s));
+  stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(config.workers, config.window_size,
+                                                                config.channel_buffer_size, std::move(stream_r),
+                                                                std::move(stream_s), config.preload);
   std::cout << "Starting BroadcastJoiner/" << IndexType::Name << " ..." << std::endl;
   if (config.watcher_enabled) {
     joiner.StartWatcher(config.watcher_interval);

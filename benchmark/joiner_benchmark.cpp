@@ -78,7 +78,6 @@ template <typename IndexType>
 static void BM_BroadcastJoiner(size_t num_workers) {
   const int64_t per_window_total_tuples = TUPLES_R + TUPLES_S / num_workers;
   const size_t end_to_end_total_tuples = TUPLES_R + TUPLES_S;
-  std::ostringstream discard_stream;
   std::string label = "BroadcastJoiner " + IndexType::Name + "/" + std::to_string(num_workers) + "w";
 
   // auto r = std::make_unique<StreamType>(SEQ_START, TUPLES_R, SEQ_STEP);
@@ -87,7 +86,7 @@ static void BM_BroadcastJoiner(size_t num_workers) {
   auto s = std::make_unique<StreamType>(TUPLES_S);
 
   stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(num_workers, WINDOW_SIZE, CHANNEL_BUFFER_SIZE,
-                                                                std::move(r), std::move(s), discard_stream);
+                                                                std::move(r), std::move(s));
   auto start_time = std::chrono::high_resolution_clock::now();
   joiner.Start(DIFF);
   auto end_time = std::chrono::high_resolution_clock::now();

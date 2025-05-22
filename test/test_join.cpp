@@ -48,7 +48,7 @@ TEST(JoinTest, BroadcastJoinerBasic) {
 
   stream::BroadcastJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::BROADCAST_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::BROADCAST_CHANNEL_BUFFER_SIZE, std::move(r),
-      std::move(s), std::cout);
+      std::move(s));
 
   joiner.Start(TestConfig::DIFF);
 }
