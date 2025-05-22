@@ -69,7 +69,7 @@ class BroadcastJoiner {
   void Preload() {
     size_t count_r = 0;
     size_t count_s = 0;
-    while (count_r < window_size_ && count_s < window_size_) {
+    while (count_r < window_size_ || count_s < window_size_) {
       auto tuple_opt = tuple_reader_.GetNextTuple();
       if (!tuple_opt.has_value()) {
         throw std::runtime_error("No more tuples available during preloading");
