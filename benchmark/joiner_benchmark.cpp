@@ -6,12 +6,14 @@
 #include <utility>
 #include <vector>
 
+#include <type_traits>
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
 #include "join/broadcast_join.hpp"
 #include "join/handshake_join.hpp"
 #include "stream/random_stream.hpp"
 #include "stream/sequential_stream.hpp"
+#include "stream/sosd.hpp"
 #include "stream/tpc_stream.hpp"
 #include "types/types.hpp"
 #include "utils/decorator.hpp"
@@ -20,7 +22,7 @@ struct Config {
   // --- Join Configuration ---
   const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32, 36};  // Number of workers to test
   size_t window_size = 1'000000;
-  int64_t diff = 3000;
+  int64_t diff = 0.0001 * std::numeric_limits<int64_t>::max();  // Join condition difference
   int64_t tuples_r = window_size * 3;
   int64_t tuples_s = window_size * 3;
   size_t channel_buffer_size = 256;
@@ -31,12 +33,16 @@ struct Config {
   bool watcher_enabled = false;  // Enable or disable watcher for handshake joiner
   std::chrono::milliseconds watcher_interval = std::chrono::milliseconds(10000);
 
+  // for SOSDStream
+  std::string sosd_file = "../data/books_200M_uint64";
+  bool sosd_shuffle = true;
+
 } config;
 
 // --- Stream Configuration ---
-using KeyType = int64_t;
-using ValueType = int64_t;
-using StreamType = stream::RandomStream;
+using KeyType = uint64_t;
+using ValueType = uint64_t;
+using StreamType = stream::SOSDStream<uint64_t>;
 
 void printHelp() {
   std::cout << "Usage: joiner_benchmark [options]\n";
@@ -88,6 +94,20 @@ void parseArguments(int argc, char **argv) {
   }
 }
 
+auto GetStreams() -> std::pair<std::unique_ptr<stream::Stream<KeyType, ValueType>>,
+                               std::unique_ptr<stream::Stream<KeyType, ValueType>>> {
+  if constexpr (std::is_same_v<StreamType, stream::RandomStream>) {
+    return {std::make_unique<StreamType>(config.tuples_r), std::make_unique<StreamType>(config.tuples_s)};
+  } else if constexpr (std::is_same_v<StreamType, stream::SequentialStream>) {
+    return {std::make_unique<StreamType>(config.tuples_r), std::make_unique<StreamType>(config.tuples_s)};
+  } else if constexpr (std::is_same_v<StreamType, stream::SOSDStream<KeyType>>) {
+    return {std::make_unique<StreamType>(config.sosd_file, config.tuples_r, config.sosd_shuffle),
+            std::make_unique<StreamType>(config.sosd_file, config.tuples_s, config.sosd_shuffle)};
+  } else {
+    throw std::runtime_error("Unsupported stream type");
+  }
+}
+
 // --- Handshake Joiner Benchmark ---
 
 template <typename IndexType>
@@ -100,9 +120,7 @@ static void BM_HandshakeJoiner(size_t num_workers, size_t iteration = 1) {
     int64_t total_tuples = config.tuples_r + config.tuples_s;
     stream::time_record_t timing_info;  // neglect preloading time and tailpopping time
 
-    // Create streams for each iteration
-    auto r = std::make_unique<StreamType>(config.tuples_r);
-    auto s = std::make_unique<StreamType>(config.tuples_s);
+    auto [r, s] = GetStreams();
 
     stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(
         num_workers, config.window_size, config.channel_buffer_size, std::move(r), std::move(s), &timing_info);
@@ -142,8 +160,7 @@ static void BM_BroadcastJoiner(size_t num_workers, size_t iteration = 1) {
     int64_t per_window_total_tuples = config.tuples_r + config.tuples_s / num_workers;
     size_t end_to_end_total_tuples = config.tuples_r + config.tuples_s;
 
-    auto r = std::make_unique<StreamType>(config.tuples_r);
-    auto s = std::make_unique<StreamType>(config.tuples_s);
+    auto [r, s] = GetStreams();
 
     stream::BroadcastJoiner<KeyType, ValueType, IndexType> joiner(
         num_workers, config.window_size, config.channel_buffer_size, std::move(r), std::move(s));
@@ -195,23 +212,25 @@ int main(int argc, char **argv) {
   std::cout << "  Stream type: " << typeid(StreamType).name() << "\n";
   std::cout << "  Random Stream R key range: [" << 0 << ", " << config.tuples_r << "]\n";
   std::cout << "  Random Stream S key range: [" << 0 << ", " << config.tuples_s << "]\n";
+  std::cout << "  SOSD Stream file: " << config.sosd_file << "\n";
+  std::cout << "  SOSD Stream shuffled: " << (config.sosd_shuffle ? "true" : "false") << "\n";
   std::cout << "  Preload tuples: " << (config.preload ? "true" : "false") << "\n";
   std::cout << "  Watcher enabled: " << (config.watcher_enabled ? "true" : "false") << "\n";
   std::cout << "  Watcher interval: " << config.watcher_interval.count() << " ms\n";
   std::cout << "  Iterations per test: " << config.iterations << "\n";
   std::cout << std::endl;
 
-  for (const auto &num_workers : config.workers) {
-    BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
-  }
+  // for (const auto &num_workers : config.workers) {
+  //   BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  // }
 
   for (const auto &num_workers : config.workers) {
     BM_BroadcastJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers, config.iterations);
   }
 
-  for (const auto &num_workers : config.workers) {
-    BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
-  }
+  // for (const auto &num_workers : config.workers) {
+  //   BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  // }
 
   for (const auto &num_workers : config.workers) {
     BM_HandshakeJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers, config.iterations);

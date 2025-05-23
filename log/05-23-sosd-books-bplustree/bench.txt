@@ -1,0 +1,36 @@
+--- Benchmark Configuration ---
+Benchmark Configuration:
+  Number of tuples (R): 3000000
+  Number of tuples (S): 3000000
+  Window size: 1000000
+  Join condition difference: 922337203685477
+  Channel buffer size: 256
+  Stream type: N6stream10SOSDStreamImmEE
+  Random Stream R key range: [0, 3000000]
+  Random Stream S key range: [0, 3000000]
+  SOSD Stream file: ../data/books_200M_uint64
+  SOSD Stream shuffled: true
+  Preload tuples: true
+  Watcher enabled: false
+  Watcher interval: 10000 ms
+  Iterations per test: 1
+
+BroadcastJoiner BPlusTreeIndex/4w: 30037.5      ms | 83229.29             tuples/s (per window)| 133166.86            tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/8w: 19792.63     ms | 113678.69            tuples/s (per window)| 202095.45            tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/12w: 17979.63     ms | 120506.76            tuples/s (per window)| 222473.98            tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/16w: 52999.55     ms | 40094.68             tuples/s (per window)| 75472.34             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/20w: 81259.40     ms | 25843.16             tuples/s (per window)| 49225.07             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/24w: 111538.88    ms | 18678.10             tuples/s (per window)| 35861.93             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/28w: 137730.58    ms | 15039.71             tuples/s (per window)| 29042.21             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/32w: 164411.53    ms | 12544.74             tuples/s (per window)| 24329.19             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/36w: 179161.95    ms | 11473.17             tuples/s (per window)| 22326.17             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/4w: 30472.96     ms | 131250.30            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/8w: 23451.28     ms | 170550.45            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/12w: 28316.97     ms | 141242.00            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/16w: 25616.65     ms | 156130.71            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/20w: 26882.96     ms | 148776.12            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/24w: 26561.47     ms | 150582.01            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/28w: 25750.99     ms | 155316.65            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/32w: 48354.65     ms | 82710.50             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/36w: 334852.84    ms | 11944.33             tuples/s (end to end)
+--- Durations Not Recorded (DEBUGGING is off) ---
