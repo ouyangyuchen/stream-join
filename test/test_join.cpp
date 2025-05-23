@@ -61,7 +61,7 @@ TEST(JoinTest, HandshakeJoiner) {
 
   stream::HandshakeJoiner<int64_t, int64_t, stream::BPlusTreeIndex<int64_t, int64_t>> joiner(
       TestConfig::HANDSHAKE_WORKERS, TestConfig::WINDOW_SIZE, TestConfig::HANDSHAKE_CHANNEL_BUFFER_SIZE, std::move(r),
-      std::move(s), std::cout);
+      std::move(s));
 
   // joiner.StartWatcher();
   joiner.Start(TestConfig::DIFF);

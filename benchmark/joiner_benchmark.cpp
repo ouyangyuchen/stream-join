@@ -18,11 +18,11 @@
 
 struct Config {
   // --- Join Configuration ---
-  const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48};  // Number of workers to test
+  const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32, 36};  // Number of workers to test
   size_t window_size = 1'000000;
-  int64_t diff = 5000;
-  int64_t tuples_r = window_size * 2;
-  int64_t tuples_s = window_size * 2;
+  int64_t diff = 3000;
+  int64_t tuples_r = window_size * 3;
+  int64_t tuples_s = window_size * 3;
   size_t channel_buffer_size = 256;
 
   size_t iterations = 1;  // Number of iterations for each benchmark
@@ -98,14 +98,14 @@ static void BM_HandshakeJoiner(size_t num_workers, size_t iteration = 1) {
 
   for (size_t i = 0; i < iteration; ++i) {
     int64_t total_tuples = config.tuples_r + config.tuples_s;
-    std::ostringstream discard_stream;
+    stream::time_record_t timing_info;  // neglect preloading time and tailpopping time
 
     // Create streams for each iteration
     auto r = std::make_unique<StreamType>(config.tuples_r);
     auto s = std::make_unique<StreamType>(config.tuples_s);
 
     stream::HandshakeJoiner<KeyType, ValueType, IndexType> joiner(
-        num_workers, config.window_size, config.channel_buffer_size, std::move(r), std::move(s), discard_stream);
+        num_workers, config.window_size, config.channel_buffer_size, std::move(r), std::move(s), &timing_info);
     if (config.preload) {
       joiner.Preload();
       total_tuples -= config.window_size + config.window_size;
@@ -114,12 +114,10 @@ static void BM_HandshakeJoiner(size_t num_workers, size_t iteration = 1) {
       joiner.StartWatcher(config.watcher_interval);
     }
 
-    auto start_time = std::chrono::high_resolution_clock::now();
     joiner.Start(config.diff);
-    auto end_time = std::chrono::high_resolution_clock::now();
 
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time).count();
-    double throughput = static_cast<double>(total_tuples) / (duration / 1e6);  // tuples per second
+    double throughput = timing_info.GetThroughput();
+    auto duration = timing_info.GetDuration().count();  // duration in microseconds
     avg_end_to_end_throughput += throughput;
     avg_duration_ms += double(duration) / 1e3;  // convert to milliseconds
   }

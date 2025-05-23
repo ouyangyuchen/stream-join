@@ -7,6 +7,30 @@ namespace stream {
 
 struct forward_context;
 
+struct time_record_t {
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_time;
+  TsType start_r_ts;
+  TsType start_s_ts;
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> end_time{
+      std::chrono::high_resolution_clock::time_point::max()};
+  TsType end_r_ts;
+  TsType end_s_ts;
+
+  auto GetDuration() const -> std::chrono::microseconds {
+    return std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+  }
+
+  /**
+   * Returns tuples per second.
+   */
+  double GetThroughput() const {
+    auto duration = GetDuration().count();
+    auto total_tuples = end_r_ts - start_r_ts + end_s_ts - start_s_ts;
+    return static_cast<double>(total_tuples) / (duration / 1e6);  // tuples per second
+  }
+};
+
 template <typename KeyType, typename ValueType, typename Container>
 class HandshakeJoiner {
   static_assert(std::is_base_of_v<WindowIndex<KeyType, ValueType>, Container>,
@@ -15,7 +39,8 @@ class HandshakeJoiner {
  public:
   HandshakeJoiner(size_t num_workers, size_t window_len, size_t channel_buffer_size,
                   std::unique_ptr<Stream<KeyType, ValueType>> stream_r,
-                  std::unique_ptr<Stream<KeyType, ValueType>> stream_s, std::ostream &os = std::cout)
+                  std::unique_ptr<Stream<KeyType, ValueType>> stream_s, time_record_t *timing = nullptr,
+                  std::ostream &os = std::cout)
       : num_workers_(num_workers),
         window_len_(window_len),
         channel_buffer_size_(channel_buffer_size),
@@ -23,7 +48,8 @@ class HandshakeJoiner {
         stream_s_(std::move(stream_s)),
         size_r_(num_workers_),
         size_s_(num_workers_),
-        os_(os) {
+        os_(os),
+        timing_(timing) {
     if (num_workers_ < 1) {
       throw std::invalid_argument("Number of workers must be greater than 0");
     }
@@ -137,6 +163,11 @@ class HandshakeJoiner {
   }
 
   void Producer() {
+    if (timing_ != nullptr) {
+      timing_->start_time = std::chrono::high_resolution_clock::now();
+      timing_->start_r_ts = newest_r_ts_;
+      timing_->start_s_ts = newest_s_ts_;
+    }
     auto producer_routine = [this](ChannelPointer<KeyType, ValueType> send_chan, Stream<KeyType, ValueType> &stream,
                                    TupleFlag ctl) {
       assert(send_chan != nullptr);
@@ -149,6 +180,11 @@ class HandshakeJoiner {
         while ((ctl == TupleFlag::INPUT_S && !ShouldPushS()) || (ctl == TupleFlag::INPUT_R && !ShouldPushR())) {
         }
         *send_chan << tuple;
+      }
+      if (timing_ != nullptr && timing_->end_time == std::chrono::high_resolution_clock::time_point::max()) {
+        timing_->end_time = std::chrono::high_resolution_clock::now();
+        timing_->end_r_ts = newest_r_ts_;
+        timing_->end_s_ts = newest_s_ts_;
       }
       auto eof = TupleType<KeyType, ValueType>();
       eof.ctl_ = (ctl == TupleFlag::INPUT_R) ? TupleFlag::EOF_R : TupleFlag::EOF_S;
@@ -199,6 +235,8 @@ class HandshakeJoiner {
   static constexpr TsType PUSH_TUPLE_TOLERANCE{50};  // timestamp tolerance for pushing tuples to the windows
 
   std::ostream &os_;  // output stream for join results
+
+  time_record_t *timing_;  // pointer to the timing record for performance measurement
 
   std::thread right_end_routine_;  // thread for the right end of the joiner
   std::thread left_end_routine_;   // thread for the left end of the joiner
