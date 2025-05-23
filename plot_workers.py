@@ -102,8 +102,8 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
         return
 
     # Define consistent attributes based on joiner and index type
-    line_styles = {"BroadcastJoiner": "-", "HandshakeJoiner": "--"}
-    colors = {"ListIndex": "tab:blue", "BPlusTreeIndex": "tab:orange"}
+    colors = {"BroadcastJoiner": "tab:blue", "HandshakeJoiner": "tab:orange"}
+    line_styles = {"ListIndex": "-", "BPlusTreeIndex": "--"}
     markers = {"ListIndex": "o", "BPlusTreeIndex": "s"}
     index_type_legend_names = {"ListIndex": "List", "BPlusTreeIndex": "B+ Tree"}
 
@@ -119,8 +119,8 @@ def plot_throughput_by_workers(df, throughput_column, output_filename=None):
             & (df_plot["index type"] == index_type)
         ].sort_values(by="worker count")
 
-        style = line_styles.get(joiner_type, "-")
-        color = colors.get(index_type, "gray")
+        color = colors.get(joiner_type, "gray")
+        style = line_styles.get(index_type, "-")
         marker = markers.get(index_type, ".")
         index_legend_name = index_type_legend_names.get(index_type, index_type)
         label = f"{joiner_type}({index_legend_name})"
