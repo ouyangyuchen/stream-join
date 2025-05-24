@@ -12,6 +12,7 @@ def build_cpp_args(config_data):
     """Builds a list of command-line arguments for the C++ program from config data."""
     args = []
     arg_map = {
+        "log_level": "--log_level",
         "window_size": "--window_size",
         "diff": "--diff",
         "tuples_r": "--tuples_r",
@@ -28,6 +29,8 @@ def build_cpp_args(config_data):
         "key_high": "--key_high",
         "seq_start": "--seq_start",
         "seq_step": "--seq_step",
+        "sosd_file": "--sosd_file",
+        "sosd_shuffle": "--sosd_shuffle",
     }
 
     for yaml_key, cli_flag in arg_map.items():
