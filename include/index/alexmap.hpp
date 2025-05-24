@@ -82,6 +82,9 @@ auto AlexMapWindowIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType
 template <typename KeyType, typename ValueType>
 auto AlexMapWindowIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
     -> std::vector<TupleType<KeyType, ValueType>> {
+  if (key_range.first > key_range.second) {
+    throw std::invalid_argument("Invalid key range: first key must be less than or equal to second key");
+  }
   std::vector<TupleType<KeyType, ValueType>> result;
   auto it = index_.lower_bound(key_range.first);
   while (it != index_.cend() && it.key() <= key_range.second) {

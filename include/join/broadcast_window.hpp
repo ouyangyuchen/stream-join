@@ -91,8 +91,13 @@ class BroadcastWindow {
     index_r_->Insert(tuple);
 
     // get the join results by range search [key - diff, key + diff]
-    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
-    auto results = index_s_->RangeSearch(key_range);
+    KeyType lower_range = (std::numeric_limits<KeyType>::min() + diff <= tuple.key_)
+                              ? tuple.key_ - diff
+                              : std::numeric_limits<KeyType>::min();
+    KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
+                              ? tuple.key_ + diff
+                              : std::numeric_limits<KeyType>::max();
+    auto results = index_s_->RangeSearch({lower_range, upper_range});
     for (const auto &result : results) {
       spdlog::debug("{} | {}", tuple, result);
     }
@@ -117,8 +122,13 @@ class BroadcastWindow {
     index_s_->Insert(tuple);
 
     // get the join results by range search [key - diff, key + diff]
-    std::pair<KeyType, KeyType> key_range(tuple.key_ - diff, tuple.key_ + diff);
-    auto results = index_r_->RangeSearch(key_range);
+    KeyType lower_range = (std::numeric_limits<KeyType>::min() + diff <= tuple.key_)
+                              ? tuple.key_ - diff
+                              : std::numeric_limits<KeyType>::min();
+    KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
+                              ? tuple.key_ + diff
+                              : std::numeric_limits<KeyType>::max();
+    auto results = index_r_->RangeSearch({lower_range, upper_range});
     for (const auto &result : results) {
       spdlog::debug("{} | {}", result, tuple);
     }

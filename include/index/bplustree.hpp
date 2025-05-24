@@ -84,6 +84,9 @@ auto BPlusTreeIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType, Va
 template <typename KeyType, typename ValueType>
 auto BPlusTreeIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
     -> std::vector<TupleType<KeyType, ValueType>> {
+  if (key_range.first > key_range.second) {
+    throw std::invalid_argument("Invalid key range: first key is greater than second key");
+  }
   std::vector<TupleType<KeyType, ValueType>> result;
   auto it = tree_.lower_bound(key_range.first);
   while (it != tree_.end() && it->first <= key_range.second) {

@@ -191,8 +191,13 @@ class HandshakeWindow {
   auto ProcessLeft(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_R) {
       size_t join_count = 0;
-      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-      auto results = index_s_->RangeSearch(search_range);
+      KeyType lower_range = (std::numeric_limits<KeyType>::min() + diff <= tuple.key_)
+                                ? tuple.key_ - diff
+                                : std::numeric_limits<KeyType>::min();
+      KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
+                                ? tuple.key_ + diff
+                                : std::numeric_limits<KeyType>::max();
+      auto results = index_s_->RangeSearch({lower_range, upper_range});
       for (const auto &tuple_s : results) {
         if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_)) {
           // spdlog::debug("{} | {}", tuple, tuple_s);
@@ -215,8 +220,13 @@ class HandshakeWindow {
   auto ProcessRight(TupleType<KeyType, ValueType> &tuple, KeyType diff) -> size_t {
     if (tuple.ctl_ == TupleFlag::INPUT_S) {
       size_t join_count = 0;
-      auto search_range = std::make_pair(tuple.key_ - diff, tuple.key_ + diff);
-      auto results = index_r_->RangeSearch(search_range);
+      KeyType lower_range = (std::numeric_limits<KeyType>::min() + diff <= tuple.key_)
+                                ? tuple.key_ - diff
+                                : std::numeric_limits<KeyType>::min();
+      KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
+                                ? tuple.key_ + diff
+                                : std::numeric_limits<KeyType>::max();
+      auto results = index_r_->RangeSearch({lower_range, upper_range});
       for (const auto &tuple_r : results) {
         if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_) && !tuple_r.forwarded_) {
           // spdlog::debug("{} | {}", tuple_r, tuple);
