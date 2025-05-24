@@ -3,6 +3,7 @@
 #include <optional>
 #include "stream/random_stream.hpp"
 #include "stream/sequential_stream.hpp"
+#include "stream/sosd.hpp"
 #include "stream/tpc_stream.hpp"
 #include "types/types.hpp"
 
@@ -156,4 +157,25 @@ TEST(StreamTest, TupleReaderSingleStream) {
     cnt++;
   }
   ASSERT_EQ(num_tuples, cnt);
+}
+
+TEST(StreamTest, SOSDStreamBasic) {
+  const std::string file_path = "../data/books_200M_uint32";
+  size_t size = 100;
+
+  stream::SOSDStream<uint32_t> sosd_stream(file_path, size, true);
+  stream::TupleType<uint32_t, uint32_t> tuple;
+  ASSERT_FALSE(sosd_stream.Eof());
+
+  for (size_t i = 0; i < size; ++i) {
+    ASSERT_TRUE(sosd_stream.Available());
+    sosd_stream >> tuple;
+    ASSERT_EQ(tuple.timestamp_, i);
+    ASSERT_EQ(tuple.value_, tuple.key_);  // Assuming value is the same as key
+    std::cout << tuple << "\n";
+  }
+
+  ASSERT_FALSE(sosd_stream.Available());
+  ASSERT_TRUE(sosd_stream.Eof());
+  ASSERT_ANY_THROW(sosd_stream >> tuple);  // Should throw an error when trying to read past EOF
 }
