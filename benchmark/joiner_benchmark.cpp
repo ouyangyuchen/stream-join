@@ -20,9 +20,14 @@
 #include "types/types.hpp"
 #include "utils/decorator.hpp"
 
+// --- Stream Configuration ---
+using KeyType = uint64_t;
+using ValueType = uint64_t;
+using StreamType = stream::SOSDStream<KeyType>;  // Change this to the desired stream type
+
 struct Config {
   // --- Join Configuration ---
-  const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32, 36};  // Number of workers to test
+  const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32};  // Number of workers to test
   size_t window_size = 500000;
   int64_t diff = 0.0001 * std::numeric_limits<int64_t>::max();  // Join condition difference
   int64_t tuples_r = window_size * 3;
@@ -38,13 +43,9 @@ struct Config {
   // for SOSDStream
   std::string sosd_file = "../data/osm_cellids_200M_uint64";
   bool sosd_shuffle = true;
+  std::vector<KeyType> sosd_file_data;
 
 } config;
-
-// --- Stream Configuration ---
-using KeyType = uint64_t;
-using ValueType = uint64_t;
-using StreamType = stream::SOSDStream<KeyType>;  // Change this to the desired stream type
 
 void printHelp() {
   std::cout << "Usage: joiner_benchmark [options]\n";
@@ -103,8 +104,8 @@ auto GetStreams() -> std::pair<std::unique_ptr<stream::Stream<KeyType, ValueType
   } else if constexpr (std::is_same_v<StreamType, stream::SequentialStream>) {
     return {std::make_unique<StreamType>(config.tuples_r), std::make_unique<StreamType>(config.tuples_s)};
   } else if constexpr (std::is_same_v<StreamType, stream::SOSDStream<KeyType>>) {
-    return {std::make_unique<StreamType>(config.sosd_file, config.tuples_r, config.sosd_shuffle),
-            std::make_unique<StreamType>(config.sosd_file, config.tuples_s, config.sosd_shuffle)};
+    return {std::make_unique<StreamType>(config.sosd_file_data, config.tuples_r),
+            std::make_unique<StreamType>(config.sosd_file_data, config.tuples_s)};
   } else {
     throw std::runtime_error("Unsupported stream type");
   }
@@ -221,6 +222,12 @@ int main(int argc, char **argv) {
   std::cout << "  Watcher interval: " << config.watcher_interval.count() << " ms\n";
   std::cout << "  Iterations per test: " << config.iterations << "\n";
   std::cout << std::endl;
+
+  if constexpr (std::is_same_v<StreamType, stream::SOSDStream<KeyType>>) {
+    config.sosd_file_data = stream::load_sosd<KeyType>(config.sosd_file, config.sosd_shuffle);
+    std::cout << "Loaded SOSD file with " << config.sosd_file_data.size() << " keys from " << config.sosd_file << "\n"
+              << std::endl;
+  }
 
   for (const auto &num_workers : config.workers) {
     BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);

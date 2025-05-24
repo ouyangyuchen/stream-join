@@ -1,0 +1,35 @@
+--- Benchmark Configuration ---
+Benchmark Configuration:
+  Number of tuples (R): 1500000
+  Number of tuples (S): 1500000
+  Window size: 500000
+  Join condition difference: 922337203685477
+  Channel buffer size: 256
+  Stream type: N6stream10SOSDStreamImmEE
+  Random Stream R key range: [0, 1500000]
+  Random Stream S key range: [0, 1500000]
+  SOSD Stream file: ../data/books_200M_uint64
+  SOSD Stream shuffled: true
+  Preload tuples: true
+  Watcher enabled: false
+  Watcher interval: 10000 ms
+  Iterations per test: 1
+
+Loaded SOSD file with 200000000 keys from ../data/books_200M_uint64
+
+HandshakeJoiner BPlusTreeIndex/4w: 13202.7      ms | 151449.51            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/8w: 10333.01     ms | 193510.24            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/12w: 10497.94     ms | 190470.99            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/16w: 10250.77     ms | 195062.81            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/20w: 11604.49     ms | 172302.09            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/24w: 11403.46     ms | 175346.24            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/28w: 11725.82     ms | 170525.09            tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/32w: 12352.32     ms | 161875.37            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/4w: 9879.40      ms | 202394.92            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/8w: 8634.26      ms | 231585.85            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/12w: 7736.70      ms | 258450.73            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/16w: 8441.03      ms | 236880.84            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/20w: 8536.40      ms | 234229.27            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/24w: 9549.10      ms | 209414.78            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/28w: 10005.88     ms | 199840.31            tuples/s (end to end)
+HandshakeJoiner AlexMapWindowIndex/32w: 10606.26     ms | 188524.95            tuples/s (end to end)

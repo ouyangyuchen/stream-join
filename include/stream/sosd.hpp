@@ -8,7 +8,7 @@
 namespace stream {
 
 template <typename T>
-auto load_sosd(std::string filename) -> std::vector<T> {
+auto load_sosd(std::string filename, bool shuffle = true) -> std::vector<T> {
   std::ifstream ifs(filename, std::ios::in | std::ios::binary);
   std::vector<T> v;
 
@@ -24,13 +24,19 @@ auto load_sosd(std::string filename) -> std::vector<T> {
 
   ifs.close();
 
+  if (shuffle) {
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(v.begin(), v.end(), g);
+  }
+
   return v;
 }
 
 template <typename KeyType, typename ValueType = KeyType>
 class SOSDStream : public Stream<KeyType, ValueType> {
  public:
-  SOSDStream(std::string filename, size_t maxsize, bool shuffle = true);
+  SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize);
 
   auto operator>>(TupleType<KeyType, ValueType> &tuple) -> Stream<KeyType, ValueType> & override;
 
@@ -39,35 +45,18 @@ class SOSDStream : public Stream<KeyType, ValueType> {
   auto Eof() -> bool override;
 
  private:
-  std::vector<KeyType> keys_;    // vector of keys
-  size_t current_index_{0};      // current index in the vector
-  TsType current_timestamp_{0};  // current timestamp
-  const size_t maxsize_;         // max size of the stream/vector
+  const std::vector<KeyType> &keys_;  // vector of keys
+  size_t current_index_{0};           // current index in the vector
+  TsType current_timestamp_{0};       // current timestamp
+  size_t maxsize_;                    // max size of the stream/vector
 };
 
 template <typename KeyType, typename ValueType>
-SOSDStream<KeyType, ValueType>::SOSDStream(std::string filename, size_t maxsize, bool shuffle)
-    : keys_(load_sosd<KeyType>(filename)), maxsize_(maxsize) {
-  if (keys_.empty()) {
-    throw std::runtime_error("SOSDStream: No data loaded");
-  }
-
-  // filter out the duplicate keys
-  //   size_t original_size = keys_.size();
-  //   auto last = std::unique(keys_.begin(), keys_.end());
-  //   keys_.erase(last, keys_.end());
-  //   size_t filtered_size = keys_.size();
-  //   if (filtered_size != original_size) {
-  //     std::cerr << "SOSDStream: Filtered out " << (original_size - filtered_size) << " duplicate keys" << std::endl;
-  //   }
-
-  if (shuffle) {
-    std::shuffle(keys_.begin(), keys_.end(), std::default_random_engine(std::random_device()()));
-  }
+SOSDStream<KeyType, ValueType>::SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize)
+    : keys_(file_data), maxsize_(maxsize) {
   if (maxsize_ > keys_.size()) {
-    std::cerr << "Warn: Maxsize is too large, truncated to " << keys_.size() << std::endl;
+    throw std::runtime_error("SOSDStream: maxsize exceeds the number of keys in the file");
   }
-  keys_.resize(std::min(maxsize_, keys_.size()));
 }
 
 template <typename KeyType, typename ValueType>
@@ -83,12 +72,12 @@ auto SOSDStream<KeyType, ValueType>::operator>>(TupleType<KeyType, ValueType> &t
 
 template <typename KeyType, typename ValueType>
 auto SOSDStream<KeyType, ValueType>::Available() -> bool {
-  return current_index_ < keys_.size();
+  return current_index_ < maxsize_;
 }
 
 template <typename KeyType, typename ValueType>
 auto SOSDStream<KeyType, ValueType>::Eof() -> bool {
-  return current_index_ >= keys_.size();
+  return current_index_ >= maxsize_;
 }
 
 }  // namespace stream
