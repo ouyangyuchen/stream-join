@@ -7,8 +7,10 @@
 #include <vector>
 
 #include <type_traits>
+#include "index/alexmap.hpp"
 #include "index/bplustree.hpp"
 #include "index/list.hpp"
+#include "index/pgm.hpp"
 #include "join/broadcast_join.hpp"
 #include "join/handshake_join.hpp"
 #include "stream/random_stream.hpp"
@@ -21,7 +23,7 @@
 struct Config {
   // --- Join Configuration ---
   const std::vector<int64_t> workers = {4, 8, 12, 16, 20, 24, 28, 32, 36};  // Number of workers to test
-  size_t window_size = 1'000000;
+  size_t window_size = 500000;
   int64_t diff = 0.0001 * std::numeric_limits<int64_t>::max();  // Join condition difference
   int64_t tuples_r = window_size * 3;
   int64_t tuples_s = window_size * 3;
@@ -34,7 +36,7 @@ struct Config {
   std::chrono::milliseconds watcher_interval = std::chrono::milliseconds(10000);
 
   // for SOSDStream
-  std::string sosd_file = "../data/books_200M_uint64";
+  std::string sosd_file = "../data/osm_cellids_200M_uint64";
   bool sosd_shuffle = true;
 
 } config;
@@ -42,7 +44,7 @@ struct Config {
 // --- Stream Configuration ---
 using KeyType = uint64_t;
 using ValueType = uint64_t;
-using StreamType = stream::SOSDStream<uint64_t>;
+using StreamType = stream::SOSDStream<KeyType>;  // Change this to the desired stream type
 
 void printHelp() {
   std::cout << "Usage: joiner_benchmark [options]\n";
@@ -199,7 +201,7 @@ static void BM_BroadcastJoiner(size_t num_workers, size_t iteration = 1) {
 // --- Main Function ---
 int main(int argc, char **argv) {
   parseArguments(argc, argv);
-  spdlog::set_level(spdlog::level::off);
+  spdlog::set_level(spdlog::level::err);
 
   // print benchmark configuration parameters
   std::cout << "--- Benchmark Configuration ---" << std::endl;
@@ -220,20 +222,28 @@ int main(int argc, char **argv) {
   std::cout << "  Iterations per test: " << config.iterations << "\n";
   std::cout << std::endl;
 
-  // for (const auto &num_workers : config.workers) {
-  //   BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
-  // }
+  for (const auto &num_workers : config.workers) {
+    BM_BroadcastJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  }
 
   for (const auto &num_workers : config.workers) {
     BM_BroadcastJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers, config.iterations);
   }
 
-  // for (const auto &num_workers : config.workers) {
-  //   BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
-  // }
+  for (const auto &num_workers : config.workers) {
+    BM_BroadcastJoiner<stream::AlexMapWindowIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  }
+
+  for (const auto &num_workers : config.workers) {
+    BM_HandshakeJoiner<stream::ListIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  }
 
   for (const auto &num_workers : config.workers) {
     BM_HandshakeJoiner<stream::BPlusTreeIndex<KeyType, ValueType>>(num_workers, config.iterations);
+  }
+
+  for (const auto &num_workers : config.workers) {
+    BM_HandshakeJoiner<stream::AlexMapWindowIndex<KeyType, ValueType>>(num_workers, config.iterations);
   }
 
   decorator::printAllDurations();

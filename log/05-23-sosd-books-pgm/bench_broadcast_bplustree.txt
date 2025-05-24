@@ -1,0 +1,40 @@
+--- Benchmark Configuration ---
+Benchmark Configuration:
+  Number of tuples (R): 30000000
+  Number of tuples (S): 30000000
+  Window size: 10000000
+  Join condition difference: 461168601842738
+  Channel buffer size: 256
+  Stream type: N6stream10SOSDStreamImmEE
+  Random Stream R key range: [0, 30000000]
+  Random Stream S key range: [0, 30000000]
+  SOSD Stream file: ../data/books_200M_uint64
+  SOSD Stream shuffled: true
+  Preload tuples: true
+  Watcher enabled: false
+  Watcher interval: 10000 ms
+  Iterations per test: 1
+
+BroadcastJoiner BPlusTreeIndex/4w: 1.44017e+06  ms | 17359.12             tuples/s (per window)| 27774.59             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/8w: 835095.09    ms | 26943.04             tuples/s (per window)| 47898.74             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/12w: 633724.07    ms | 34189.43             tuples/s (per window)| 63118.95             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/16w: 531283.03    ms | 39997.51             tuples/s (per window)| 75289.44             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/20w: 495393.16    ms | 42390.57             tuples/s (per window)| 80743.95             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/24w: 596776.67    ms | 34909.77             tuples/s (per window)| 67026.75             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/28w: 1116760.31   ms | 18548.55             tuples/s (per window)| 35817.89             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/32w: 1522665.90   ms | 13545.32             tuples/s (per window)| 26269.72             tuples/s (end to end)
+BroadcastJoiner BPlusTreeIndex/36w: 1657948.79   ms | 12398.19             tuples/s (per window)| 24126.20             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/8w: 866682       ms | 25961.07             tuples/s (per window)| 46153.02             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/12w: 708371.53    ms | 30586.59             tuples/s (per window)| 56467.54             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/16w: 678978.52    ms | 31297.01             tuples/s (per window)| 58912.03             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/20w: 719990.56    ms | 29167.05             tuples/s (per window)| 55556.28             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/24w: 674370.72    ms | 30893.00             tuples/s (per window)| 59314.56             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/28w: 874628.43    ms | 23683.53             tuples/s (per window)| 45733.71             tuples/s (end to end)
+BroadcastJoiner AlexMapWindowIndex/32w: 1286343.81   ms | 16033.82             tuples/s (per window)| 31095.89             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/8w: 695400.97    ms | 57520.24             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/12w: 549183.38    ms | 72834.63             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/16w: 524805.22    ms | 76217.88             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/20w: 496845.12    ms | 80506.99             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/24w: 487120.29    ms | 82114.65             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/28w: 535419.33    ms | 74707.12             tuples/s (end to end)
+HandshakeJoiner BPlusTreeIndex/32w: 752676.33    ms | 53142.95             tuples/s (end to end)
