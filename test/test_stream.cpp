@@ -171,7 +171,7 @@ TEST(StreamTest, SOSDStreamBasic) {
     stream >> tuple;
     ASSERT_EQ(tuple.timestamp_, i);
     ASSERT_EQ(tuple.value_, tuple.key_);
-    std::cout << tuple << std::endl;
+    // std::cout << tuple << std::endl;
   }
 
   ASSERT_FALSE(stream.Available());

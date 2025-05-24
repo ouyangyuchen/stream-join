@@ -59,13 +59,7 @@ auto AlexMapWindowIndex<KeyType, ValueType>::PopOldest() -> TupleType<KeyType, V
   }
   auto oldest_tuple = arrival_list_.front();
   arrival_list_.pop_front();
-
-  auto it = index_.find(oldest_tuple.key_);
-  if (it == index_.end()) {
-    std::string error_msg = "Key not found in AlexMap Index: " + std::to_string(oldest_tuple.key_);
-    throw std::runtime_error(error_msg);
-  }
-  index_.erase(it);
+  index_.erase(oldest_tuple.key_);
   return oldest_tuple;
 }
 
@@ -88,6 +82,9 @@ auto AlexMapWindowIndex<KeyType, ValueType>::GetOldestRef() -> TupleType<KeyType
 template <typename KeyType, typename ValueType>
 auto AlexMapWindowIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType, KeyType> &key_range) const
     -> std::vector<TupleType<KeyType, ValueType>> {
+  if (key_range.first > key_range.second) {
+    throw std::invalid_argument("Invalid key range: first key must be less than or equal to second key");
+  }
   std::vector<TupleType<KeyType, ValueType>> result;
   auto it = index_.lower_bound(key_range.first);
   while (it != index_.cend() && it.key() <= key_range.second) {
@@ -99,12 +96,12 @@ auto AlexMapWindowIndex<KeyType, ValueType>::RangeSearch(const std::pair<KeyType
 
 template <typename KeyType, typename ValueType>
 auto AlexMapWindowIndex<KeyType, ValueType>::Size() const -> size_t {
-  return index_.size();
+  return arrival_list_.size();
 }
 
 template <typename KeyType, typename ValueType>
 auto AlexMapWindowIndex<KeyType, ValueType>::Empty() const -> bool {
-  return index_.empty();
+  return arrival_list_.empty();
 }
 
 }  // namespace stream
