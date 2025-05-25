@@ -1,12 +1,12 @@
-window_size: 800
-log_level: "off"
-diff: 922337203685477 
-tuples_r: 10000 # Reduced for quicker test
-tuples_s: 10000 # Reduced for quicker test
+window_size: 1000000
+log_level: "info"
+diff: 200 
+tuples_r: 10000000
+tuples_s: 10000000
 workers: 8
 joiner_type: "handshake"
-index_type: "alex"
-stream_type: "sosd"
+index_type: "bplustree"
+stream_type: "random"
 watcher_enabled: 0
 watcher_interval: 10000
 channel_buffer_size: 256

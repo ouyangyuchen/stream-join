@@ -140,7 +140,7 @@ class HandshakeWindow {
     while (!ShouldTerminate()) {
       ++iteration;
 
-      if (!input_left_chan_->empty() && (!IsLeftMost() || index_r_->Size() < END_BALANCING_THRESHOLD)) {
+      if (!input_left_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_left_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S || tuple.ctl_ == TupleFlag::EOF_R);
@@ -153,7 +153,7 @@ class HandshakeWindow {
           join_count += ProcessLeft(tuple, diff);
         }
       }
-      if (!input_right_chan_->empty() && (!IsRightMost() || index_s_->Size() < END_BALANCING_THRESHOLD)) {
+      if (!input_right_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_right_chan_ >> tuple;
         assert(tuple.ctl_ == TupleFlag::INPUT_S || tuple.ctl_ == TupleFlag::EOF_S);
