@@ -73,7 +73,7 @@ def plot_benchmark_results(csv_filepath, output_filepath):
         ax.plot(
             group["Workers"],
             group["Throughput_tuples_s"],
-            label=f"{joiner} / {index}",
+            label=f"{joiner}",
             color=color_map.get(joiner),
             linestyle=style_map.get(index),
             marker="o",
@@ -82,14 +82,14 @@ def plot_benchmark_results(csv_filepath, output_filepath):
         )
 
     # --- Customize the Plot ---
-    ax.set_title("Average Throughput vs. Number of Workers", fontsize=16)
+    ax.set_title("Throughput Roofline: Broadcast v.s. Handshake", fontsize=16)
     ax.set_xlabel("Number of Workers", fontsize=12)
     ax.set_ylabel("Average Throughput (tuples/s)", fontsize=12)
     worker_ticks = sorted(df_avg["Workers"].unique())
     ax.set_xticks(worker_ticks)
     ax.set_xticklabels([int(w) for w in worker_ticks])
     ax.legend(
-        title="Joiner / Index",
+        title="Joiner",
         bbox_to_anchor=(1.04, 1),
         loc="upper left",
         borderaxespad=0.0,
