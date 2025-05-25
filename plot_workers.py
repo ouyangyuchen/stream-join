@@ -51,7 +51,7 @@ def plot_benchmark_results(csv_filepath, output_filepath):
     # --- Plotting Setup ---
     joiners = sorted(df_avg["JoinerType"].unique())
     indexes = sorted(df_avg["IndexType"].unique())
-    colors = plt.cm.get_cmap("tab10", len(joiners))
+    colors = plt.colormaps.get_cmap("tab10")
     color_map = {joiner: colors(i) for i, joiner in enumerate(joiners)}
     style_map = {
         "bplustree": "-",
