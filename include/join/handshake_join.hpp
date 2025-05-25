@@ -201,15 +201,9 @@ class HandshakeJoiner {
     producer_s.join();
   }
 
-  auto ShouldPushR() -> bool {
-    TsType upper_bound = oldest_r_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return newest_r_ts_ <= upper_bound;
-  }
+  auto ShouldPushR() -> bool { return true; }
 
-  auto ShouldPushS() -> bool {
-    TsType upper_bound = oldest_s_ts_ + window_len_ + PUSH_TUPLE_TOLERANCE;
-    return newest_s_ts_ <= upper_bound;
-  }
+  auto ShouldPushS() -> bool { return true; }
 
   size_t num_workers_;
   size_t window_len_;

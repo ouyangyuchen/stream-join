@@ -100,28 +100,14 @@ class HandshakeWindow {
     if (index_s_->Empty()) {
       return false;
     }
-    if (IsLeftMost()) {
-      // the left-most sub-window sends the oldest s tuple to the null if it is expired
-      const auto &tuple_oldest = index_s_->GetOldestRef();
-      auto current_newest_r_ts = *(forward_context_.newest_r_ts);
-      return tuple_oldest.timestamp_ <= current_newest_r_ts &&
-             !TimeStampMatched(tuple_oldest.timestamp_, current_newest_r_ts);
-    }
-    return forward_context_.size_s->load() > forward_context_.size_s_left->load();
+    return true;
   }
 
   bool ShouldForwardRight() {
     if (index_r_->Empty()) {
       return false;
     }
-    if (IsRightMost()) {
-      // the right-most sub-window sends the oldest r tuple to the null if it is expired
-      const auto &tuple_oldest = index_r_->GetOldestRef();
-      auto current_newest_s_ts = *(forward_context_.newest_s_ts);
-      return tuple_oldest.timestamp_ <= current_newest_s_ts &&
-             !TimeStampMatched(tuple_oldest.timestamp_, current_newest_s_ts);
-    }
-    return forward_context_.size_r->load() > forward_context_.size_r_right->load();
+    return true;
   }
 
   inline bool IsLeftMost() const { return forward_context_.size_s_left == nullptr; }
@@ -132,6 +118,7 @@ class HandshakeWindow {
    * @brief Process tuples in the input channel and forward them to left/right correspondingly.
    */
   void ProcessRoutine(KeyType diff) {
+    (void)diff;
     size_t iteration{0};
     size_t join_count{0};
     size_t index_r_count_avg{0};  // average r tuple workload
@@ -140,34 +127,27 @@ class HandshakeWindow {
     while (!ShouldTerminate()) {
       ++iteration;
 
-      if (!input_left_chan_->empty() && (!IsLeftMost() || index_r_->Size() < END_BALANCING_THRESHOLD)) {
+      if (!input_left_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_left_chan_ >> tuple;
-        assert(tuple.ctl_ == TupleFlag::INPUT_R || tuple.ctl_ == TupleFlag::ACK_S || tuple.ctl_ == TupleFlag::EOF_R);
-        if (tuple.ctl_ == TupleFlag::EOF_R) {
-          *(forward_context_.newest_r_ts) = INT64_MAX;
-        } else {
+        if (tuple.ctl_ == TupleFlag::INPUT_R) {
           if (IsLeftMost()) {
-            *(forward_context_.newest_r_ts) = tuple.timestamp_;
+            (*forward_context_.newest_r_ts) = tuple.timestamp_;
           }
-          join_count += ProcessLeft(tuple, diff);
+          SendToRight(tuple);  // send to the right channel
         }
       }
-      if (!input_right_chan_->empty() && (!IsRightMost() || index_s_->Size() < END_BALANCING_THRESHOLD)) {
+      if (!input_right_chan_->empty()) {
         TupleType<KeyType, ValueType> tuple;
         *input_right_chan_ >> tuple;
-        assert(tuple.ctl_ == TupleFlag::INPUT_S || tuple.ctl_ == TupleFlag::EOF_S);
-        if (tuple.ctl_ == TupleFlag::EOF_S) {
-          *(forward_context_.newest_s_ts) = INT64_MAX;
-        } else {
+        if (tuple.ctl_ == TupleFlag::INPUT_S) {
           if (IsRightMost()) {
-            *(forward_context_.newest_s_ts) = tuple.timestamp_;
+            (*forward_context_.newest_s_ts) = tuple.timestamp_;
           }
-          join_count += ProcessRight(tuple, diff);
+          SendToLeft(tuple);  // send to the left channel
         }
       }
 
-      ForwardTuples();
       FlushPendings();
 
       index_r_count_avg += index_r_->Size();
@@ -283,16 +263,6 @@ class HandshakeWindow {
         }
       }
     } else if (IsLeftMost()) {
-      // left-most sub-window sends "s" tuple to the null, ack(s) will not be received
-      // therefore, the left-most one directly processes the ack as if it is received
-      for (auto &tuple_del : pending_list_left_) {
-        tuple_del.forwarded_ = true;  // for assertion check
-        TsType oldest_s_ts = tuple_del.timestamp_;
-        assert(tuple_del.timestamp_ <= *forward_context_.newest_s_ts);
-        assert(!TimeStampMatched(*forward_context_.newest_r_ts, tuple_del.timestamp_));
-        ProcessAck(tuple_del);
-        *(forward_context_.oldest_s_ts) = oldest_s_ts;
-      }
       pending_list_left_.clear();
     }
 
@@ -303,14 +273,6 @@ class HandshakeWindow {
         }
         auto tuple_sent = pending_list_right_.front();
         pending_list_right_.pop_front();
-
-        if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
-          auto tuple_del = index_r_->PopOldest();
-          (void)tuple_del;
-          forward_context_.size_r->store(index_r_->Size());
-          assert(tuple_del.key_ == tuple_sent.key_);
-          assert(tuple_sent.timestamp_ == tuple_del.timestamp_);
-        }
         *output_right_chan_ << tuple_sent;
       }
       if (pending_list_right_.empty()) {
@@ -321,17 +283,6 @@ class HandshakeWindow {
         }
       }
     } else if (IsRightMost()) {
-      // right-most sub-window sends "r" tuple to the null: directly pop the oldest tuple
-      for (const auto &tuple : pending_list_right_) {
-        if (tuple.ctl_ == TupleFlag::ACK_S) {
-          continue;
-        }
-        auto tuple_del = index_r_->PopOldest();
-        forward_context_.size_r->store(index_r_->Size());
-        assert(tuple_del.timestamp_ <= *forward_context_.newest_r_ts);
-        assert(!TimeStampMatched(tuple.timestamp_, *forward_context_.newest_s_ts));
-        *(forward_context_.oldest_r_ts) = tuple_del.timestamp_;
-      }
       pending_list_right_.clear();
     }
   }

@@ -137,15 +137,10 @@ class BroadcastWindow {
   }
 
   void WorkRoutine(KeyType diff) {
+    (void)diff;
     size_t join_count = 0;
     for (const TupleType<KeyType, ValueType> tuple : *this->input_chan_) {
-      if (tuple.ctl_ == TupleFlag::INPUT_R) {
-        join_count += ProcessR(tuple, diff);
-      } else if (tuple.ctl_ == TupleFlag::INPUT_S) {
-        join_count += ProcessS(tuple, diff);
-      } else {
-        throw std::runtime_error("Invalid tuple control flag");
-      }
+      (void)tuple;
     }
     spdlog::info("Window {}: Join count: {}", id_, join_count);
   }

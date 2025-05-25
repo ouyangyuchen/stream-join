@@ -11,26 +11,26 @@ import time
 MAIN_EXECUTABLE = "./main"
 DEFAULT_SOSD_FILE = "../data/osm_cellids_200M_uint64"
 BENCHMARK_TIMEOUT = 2000  # Timeout for each benchmark run in seconds
-NUM_ITERATIONS = 2  # Number of *non-timeout* runs required per config
+NUM_ITERATIONS = 3  # Number of *non-timeout* runs required per config
 MAX_ATTEMPTS_FACTOR = (
     2  # Max attempts = NUM_ITERATIONS * this factor (prevents infinite loops)
 )
 
 # --- Benchmark Parameters ---
 benchmark_params = {
-    "workers": [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48],
-    "index_type": ["bplustree", "alex"],
-    "joiner_type": ["broadcast"],
+    "workers": [1, 2, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44],
+    "index_type": ["bplustree"],
+    "joiner_type": ["handshake"],
     "stream_type": ["random"],
-    "tuples_r": [2000000],
-    "tuples_s": [2000000],
-    "window_size": [1000000],
+    "tuples_r": [500000],
+    "tuples_s": [500000],
+    "window_size": [100000],
     "diff": [2000],
     "channel_buffer_size": [128],
     "sosd_file": [DEFAULT_SOSD_FILE],
     "sosd_shuffle": [1],
     "log_level": ["off"],
-    "preload": [1],
+    "preload": [0],
     "watcher_enabled": [0],
 }
 
