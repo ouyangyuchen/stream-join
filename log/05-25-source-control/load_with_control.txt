@@ -15,23 +15,23 @@ Key Range: R = [0, 5000000), S = [0, 5000000)
 ---------------------
 
 Initializing joiner...
-[2025-05-25 13:00:10.948] [info] Preloaded 125000 tuples from R and 125000 tuples from S for each worker
-[2025-05-25 13:01:35.674] [info] Window 7 join count: 862837417
-[2025-05-25 13:01:35.675] [info] Window 7 index r size: 64639, index s size: 77165
-[2025-05-25 13:01:35.674] [info] Window 2 join count: 836069929
-[2025-05-25 13:01:35.675] [info] Window 2 index r size: 119800, index s size: 121030
-[2025-05-25 13:01:35.674] [info] Window 1 join count: 831136112
-[2025-05-25 13:01:35.675] [info] Window 1 index r size: 123807, index s size: 124119
-[2025-05-25 13:01:35.674] [info] Window 5 join count: 851098681
-[2025-05-25 13:01:35.674] [info] Window 6 join count: 856171449
-[2025-05-25 13:01:35.675] [info] Window 6 index r size: 95647, index s size: 101954
-[2025-05-25 13:01:35.674] [info] Window 0 join count: 826047523
-[2025-05-25 13:01:35.675] [info] Window 0 index r size: 96468, index s size: 83531
-[2025-05-25 13:01:35.674] [info] Window 3 join count: 840956638
-[2025-05-25 13:01:35.675] [info] Window 3 index r size: 119131, index s size: 120526
-[2025-05-25 13:01:35.674] [info] Window 4 join count: 846093448
-[2025-05-25 13:01:35.675] [info] Window 4 index r size: 118241, index s size: 119667
-[2025-05-25 13:01:35.675] [info] Window 5 index r size: 108907, index s size: 112452
+[2025-05-25 17:07:26.457] [info] Preloaded 125000 tuples from R and 125000 tuples from S for each worker
+[2025-05-25 17:09:46.748] [info] Window 1 join count: 917413275
+[2025-05-25 17:09:46.748] [info] Window 1 index r size: 124430, index s size: 121387
+[2025-05-25 17:09:46.748] [info] Window 2 join count: 918437565
+[2025-05-25 17:09:46.748] [info] Window 2 index r size: 122956, index s size: 122056
+[2025-05-25 17:09:46.748] [info] Window 6 join count: 929819516
+[2025-05-25 17:09:46.748] [info] Window 6 index r size: 122565, index s size: 124063
+[2025-05-25 17:09:46.748] [info] Window 0 join count: 917214374
+[2025-05-25 17:09:46.748] [info] Window 0 index r size: 124690, index s size: 113590
+[2025-05-25 17:09:46.748] [info] Window 7 join count: 933379449
+[2025-05-25 17:09:46.748] [info] Window 7 index r size: 118662, index s size: 124336
+[2025-05-25 17:09:46.748] [info] Window 5 join count: 920724420
+[2025-05-25 17:09:46.748] [info] Window 5 index r size: 122079, index s size: 123249
+[2025-05-25 17:09:46.748] [info] Window 4 join count: 919956188
+[2025-05-25 17:09:46.748] [info] Window 4 index r size: 122885, index s size: 123988
+[2025-05-25 17:09:46.748] [info] Window 3 join count: 919160557
+[2025-05-25 17:09:46.748] [info] Window 3 index r size: 123230, index s size: 124247
 HandshakeJoiner/BPlusTreeIndex/8w: 77475.4      ms | 103252.64            tuples/s (end to end)
 --- End of C++ Program Output ---
 
