@@ -1,8 +1,8 @@
 window_size: 1000000
 log_level: "info"
-diff: 200 
-tuples_r: 10000000
-tuples_s: 10000000
+diff: 2000 
+tuples_r: 5000000
+tuples_s: 5000000
 workers: 8
 joiner_type: "handshake"
 index_type: "bplustree"

@@ -1,0 +1,38 @@
+Running C++ program with command: ./main --log_level info --window_size 1000000 --diff 2000 --tuples_r 5000000 --tuples_s 5000000 --channel_buffer_size 256 --workers 8 --joiner_type handshake --index_type bplustree --stream_type random --preload 1 --watcher_enabled 0 --watcher_interval 10000 --sosd_file ../data/osm_cellids_200M_uint64 --sosd_shuffle 1
+--- C++ Program Output ---
+
+
+--- Configuration ---
+Joiner Type: handshake
+Index Type: bplustree
+Stream Type: random
+Workers: 8
+Window Size: 1000000
+Diff: 2000
+Tuples R: 5000000, Tuples S: 5000000
+Channel Buffer Size: 256
+Key Range: R = [0, 5000000), S = [0, 5000000)
+---------------------
+
+Initializing joiner...
+[2025-05-25 16:29:36.854] [info] Preloaded 125000 tuples from R and 125000 tuples from S for each worker
+[2025-05-25 16:36:39.223] [info] Window 4 join count: 86751510
+[2025-05-25 16:36:39.223] [info] Window 4 index r size: 231435, index s size: 1272
+[2025-05-25 16:36:39.223] [info] Window 2 join count: 80499502
+[2025-05-25 16:36:39.223] [info] Window 2 index r size: 229449, index s size: 389
+[2025-05-25 16:36:39.223] [info] Window 6 join count: 78570315
+[2025-05-25 16:36:39.223] [info] Window 6 index r size: 143148, index s size: 2020
+[2025-05-25 16:36:39.223] [info] Window 5 join count: 94030486
+[2025-05-25 16:36:39.223] [info] Window 5 index r size: 232529, index s size: 1552
+[2025-05-25 16:36:39.223] [info] Window 0 join count: 72513803
+[2025-05-25 16:36:39.223] [info] Window 0 index r size: 225872, index s size: 1
+[2025-05-25 16:36:39.223] [info] Window 3 join count: 83251315
+[2025-05-25 16:36:39.223] [info] Window 3 index r size: 230027, index s size: 734
+[2025-05-25 16:36:39.223] [info] Window 1 join count: 78150988
+[2025-05-25 16:36:39.223] [info] Window 1 index r size: 228205, index s size: 87
+[2025-05-25 16:36:39.223] [info] Window 7 join count: 6176455984
+[2025-05-25 16:36:39.223] [info] Window 7 index r size: 2644, index s size: 587386
+HandshakeJoiner/BPlusTreeIndex/8w: 18667.9      ms | 255676.52            tuples/s (end to end)
+--- End of C++ Program Output ---
+
+8000000 / 7:2.369 = 18940.784 tuples/s

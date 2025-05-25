@@ -1,226 +1,168 @@
-import pandas as pd
 import re
-import sys
-import os
 import matplotlib.pyplot as plt
 import numpy as np
-
-# Regex to capture window index, index r size, and index s size
-index_size_pattern = re.compile(
-    r"Window (\d+) index r size: (\d+), index s size: (\d+)"
-)
-
-# Regex to capture window index and join count
-join_count_pattern = re.compile(r"Window (\d+) join count: (\d+)")
-
-# Dictionary to store all data: {window_index: {'r_size': size_r, 's_size': size_s, 'join_count': count}}
-window_data = {}
-
-# State variable to track being inside the HandshakeJoiner test block
-in_handshake_test = False
-
-# --- Command-line Argument Handling ---
-if len(sys.argv) != 3:
-    print("Usage: python your_script_name.py <log_file_path> <output_plot_path>")
-    print("Example: python plot_window_data.py log.txt window_data.png")
-    sys.exit(1)  # Exit with an error code
-
-log_file_path = sys.argv[1]
-output_plot_path = sys.argv[2]
-
-# Check if the input log file exists
-if not os.path.exists(log_file_path):
-    print(f"Error: Input log file not found at '{log_file_path}'")
-    sys.exit(1)  # Exit with an error code
-
-# --- File Reading and Processing ---
-try:
-    with open(log_file_path, "r") as log_file:
-        # Read the file line by line
-        for line in log_file:
-            line = line.strip()  # Remove leading/trailing whitespace
-
-            # Check if we are entering the HandshakeJoiner test block
-            if line.startswith("[ RUN      ]"):
-                if "WindowTest.HandshakeJoiner" in line:
-                    in_handshake_test = True
-                else:
-                    # If we were in HandshakeJoiner and hit another RUN, we've exited it
-                    if in_handshake_test:
-                        in_handshake_test = False
-
-            # Check if we are exiting the HandshakeJoiner test block
-            # The index size and join count lines appear *before* the durations section or the OK line
-            if in_handshake_test and (
-                line.startswith("[       OK ]") or line == "--- Recorded Durations ---"
-            ):
-                in_handshake_test = False
-
-            # If we are inside the HandshakeJoiner block, try to parse relevant lines
-            if in_handshake_test:
-                # Try to match index size line
-                match_size = index_size_pattern.search(line)
-                if match_size:
-                    window_index = int(match_size.group(1))
-                    r_size = int(match_size.group(2))
-                    s_size = int(match_size.group(3))
-
-                    # Initialize dictionary for this window if it doesn't exist
-                    if window_index not in window_data:
-                        window_data[window_index] = {}
-
-                    # Store the sizes
-                    window_data[window_index]["r_size"] = r_size
-                    window_data[window_index]["s_size"] = s_size
-                    continue  # Move to the next line
-
-                # Try to match join count line
-                match_count = join_count_pattern.search(line)
-                if match_count:
-                    window_index = int(match_count.group(1))
-                    join_count = int(match_count.group(2))
-
-                    # Initialize dictionary for this window if it doesn't exist
-                    if window_index not in window_data:
-                        window_data[window_index] = {}
-
-                    # Store the join count
-                    window_data[window_index]["join_count"] = join_count
-                    continue  # Move to the next line
+import argparse
+import sys
 
 
-except Exception as e:
-    print(f"An error occurred while reading or processing the file: {e}")
-    sys.exit(1)  # Exit with an error code
-
-# --- Data Organization and Output ---
-
-if not window_data:
-    print(
-        f"No index size or join count data found for WindowTest.HandshakeJoiner in '{log_file_path}'."
+def parse_log_file(file_path):
+    """Parses the log file to extract window data."""
+    data = {}
+    join_pattern = re.compile(r"\[info\] Window (\d+) join count: (\d+)")
+    size_pattern = re.compile(
+        r"\[info\] Window (\d+) index r size: (\d+), index s size: (\d+)"
     )
-    sys.exit(0)  # Exit gracefully if no data
 
-# Convert the dictionary to a pandas DataFrame
-# The keys (window indices) become the DataFrame index
-df_window_data = pd.DataFrame.from_dict(window_data, orient="index")
+    try:
+        with open(file_path, "r") as f:
+            for line in f:
+                join_match = join_pattern.search(line)
+                size_match = size_pattern.search(line)
 
-# Sort by index for better readability and plotting order
-df_window_data = df_window_data.sort_index()
+                if join_match:
+                    window_id = int(join_match.group(1))
+                    join_count = int(join_match.group(2))
+                    if window_id not in data:
+                        data[window_id] = {}
+                    data[window_id]["join_count"] = join_count
 
-# Fill any potential missing values with 0 (e.g., if a window had size but no count line)
-df_window_data = df_window_data.fillna(0)
+                if size_match:
+                    window_id = int(size_match.group(1))
+                    r_size = int(size_match.group(2))
+                    s_size = int(size_match.group(3))
+                    if window_id not in data:
+                        data[window_id] = {}
+                    data[window_id]["r_size"] = r_size
+                    data[window_id]["s_size"] = s_size
+    except FileNotFoundError:
+        print(f"Error: Input file '{file_path}' not found.", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error reading file '{file_path}': {e}", file=sys.stderr)
+        sys.exit(1)
 
-print(
-    f"Handshake Joiner Window Data (Index Sizes and Join Counts) from {log_file_path}:"
-)
-print(df_window_data)
+    if not data:
+        print(
+            f"Error: No relevant window data found in '{file_path}'. Please check the file format.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-# --- Plotting ---
-print(f"\nGenerating plot and saving to '{output_plot_path}'...")
+    return data
 
-# Create figure and primary axes
-fig, ax1 = plt.subplots(figsize=(12, 7))  # Adjust figure size as needed
 
-# Create secondary axes sharing the same x-axis
-ax2 = ax1.twinx()
+def create_plot(data, output_file):
+    """Creates and saves the plot from the parsed data with the legend outside."""
+    sorted_windows = sorted(data.keys())
+    window_ids = np.array(sorted_windows)
 
-# --- Plotting Bars (Index Sizes) on Primary Axis (ax1) ---
-bar_width = 0.35
-# Positions for the bars on the x-axis
-x_positions = np.arange(len(df_window_data.index))
+    # Ensure all keys exist before accessing
+    join_counts = [data[w].get("join_count", 0) for w in sorted_windows]
+    r_sizes = [data[w].get("r_size", 0) for w in sorted_windows]
+    s_sizes = [data[w].get("s_size", 0) for w in sorted_windows]
 
-# Plot r_size bars
-# Ensure 'r_size' column exists before plotting
-if "r_size" in df_window_data.columns:
-    rects1 = ax1.bar(
-        x_positions - bar_width / 2,
-        df_window_data["r_size"],
+    fig, ax1 = plt.subplots(figsize=(12, 7))  # Increased height slightly for legend
+
+    # Bar chart for index sizes (left y-axis)
+    bar_width = 0.35
+    index = np.arange(len(window_ids))
+
+    bar1 = ax1.bar(
+        index - bar_width / 2,
+        r_sizes,
         bar_width,
         label="Index R Size",
-        color="skyblue",
+        color="tab:blue",
+        alpha=0.7,
     )
-    ax1.set_ylabel("Index Size", color="blue")
-    ax1.tick_params(axis="y", labelcolor="blue")
-else:
-    print(
-        "Warning: 'r_size' column not found in data. R size bars will not be plotted."
-    )
-
-# Plot s_size bars
-# Ensure 's_size' column exists before plotting
-if "s_size" in df_window_data.columns:
-    rects2 = ax1.bar(
-        x_positions + bar_width / 2,
-        df_window_data["s_size"],
+    bar2 = ax1.bar(
+        index + bar_width / 2,
+        s_sizes,
         bar_width,
         label="Index S Size",
-        color="lightcoral",
-    )
-    # Only set ylabel and tick_params if r_size wasn't plotted (to avoid overwriting)
-    if "r_size" not in df_window_data.columns:
-        ax1.set_ylabel("Index Size", color="blue")
-        ax1.tick_params(axis="y", labelcolor="blue")
-else:
-    print(
-        "Warning: 's_size' column not found in data. S size bars will not be plotted."
+        color="tab:orange",
+        alpha=0.7,
     )
 
-ax1.set_ylim(bottom=0)
+    ax1.set_xlabel("Window ID")
+    ax1.set_ylabel("Index Size", color="tab:blue")
+    ax1.tick_params(axis="y", labelcolor="tab:blue")
+    ax1.set_xticks(index)
+    ax1.set_xticklabels(window_ids)
+    ax1.set_ylim(0, max(max(r_sizes), max(s_sizes)) * 1.15)
 
-
-# --- Plotting Line (Join Counts) on Secondary Axis (ax2) ---
-# Ensure 'join_count' column exists before plotting
-if "join_count" in df_window_data.columns:
+    # Line chart for join result count (right y-axis)
+    ax2 = ax1.twinx()
     line1 = ax2.plot(
-        x_positions,
-        df_window_data["join_count"],
-        color="forestgreen",
+        index,
+        join_counts,
+        color="tab:green",
         marker="o",
         linestyle="-",
-        label="Join Count",
+        label="Join Result Count",
     )
-    # Set secondary y-axis label
-    ax2.set_ylabel("Join Count", color="forestgreen")
-    ax2.tick_params(axis="y", labelcolor="forestgreen")
-    # Set the secondary y-axis to start from 0
-    ax2.set_ylim(bottom=0)
-else:
-    print(
-        "Warning: 'join_count' column not found in data. Join count line will not be plotted."
+
+    ax2.set_ylabel("Join Result Count", color="tab:green")
+    ax2.tick_params(axis="y", labelcolor="tab:green")
+    ax2.set_ylim(0, max(join_counts) * 1.15)
+
+    # --- Legend Handling ---
+    # Get handles and labels from both axes
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    all_lines = lines1 + lines2
+    all_labels = labels1 + labels2
+
+    # Place legend below the plot area
+    # 'bbox_to_anchor' positions the legend. (0.5, -0.15) means:
+    # 0.5 -> Horizontally centered relative to the axes.
+    # -0.15 -> 15% below the bottom edge of the axes.
+    # 'ncol' sets the number of columns in the legend.
+    # 'loc' sets the anchor point on the legend box itself ('upper center' means the top-middle point of the legend box).
+    fig.legend(
+        all_lines,
+        all_labels,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 0.05),
+        ncol=3,
+        frameon=True,
     )
-    line1 = []  # Empty list if no join count data
+    # --- End Legend Handling ---
+
+    plt.title("Handshake: Index Sizes and Join Result Counts per Sub-Window (balanced)")
+
+    # Adjust layout to make space for the legend below the plot
+    # Increase the 'bottom' value to create padding at the bottom.
+    # plt.subplots_adjust(bottom=0.2)
+
+    # Save the figure
+    try:
+        plt.savefig(output_file)
+        print(f"Plot saved to '{output_file}'")
+    except Exception as e:
+        print(f"Error saving plot to '{output_file}': {e}", file=sys.stderr)
+        sys.exit(1)
+
+    plt.close()  # Close the plot to free memory
 
 
-# --- Common Plot Settings ---
-ax1.set_xlabel("Window Index")
-plt.title("Handshake Joiner Index Sizes and Join Counts per Window")
+def main():
+    """Main function to parse arguments and orchestrate plotting."""
+    parser = argparse.ArgumentParser(
+        description="Plot windowed join data from a log file."
+    )
+    parser.add_argument("input_file", help="Path to the input log file.")
+    parser.add_argument(
+        "-o",
+        "--output_file",
+        default="window_plot.png",
+        help="Path to save the output plot image (default: window_plot.png).",
+    )
+    args = parser.parse_args()
 
-# Set the x-axis ticks to be the window indices
-ax1.set_xticks(x_positions)
-ax1.set_xticklabels(df_window_data.index)
-
-# Add grid lines (optional, maybe only for the primary axis)
-ax1.grid(axis="y", linestyle="--", alpha=0.7)
-# ax2.grid(axis='y', linestyle=':', alpha=0.5) # Optional grid for secondary axis
-
-# Combine legends from both axes
-# Get handles and labels from both axes
-handles1, labels1 = ax1.get_legend_handles_labels()
-handles2, labels2 = ax2.get_legend_handles_labels()
-# Combine them
-ax2.legend(handles1 + handles2, labels1 + labels2, loc="upper left")
+    log_data = parse_log_file(args.input_file)
+    create_plot(log_data, args.output_file)
 
 
-plt.tight_layout()  # Adjust layout
-
-# --- Save the figure instead of showing ---
-try:
-    plt.savefig(output_plot_path)
-    print(f"Plot successfully saved to '{output_plot_path}'")
-except Exception as e:
-    print(f"Error saving plot to '{output_plot_path}': {e}")
-    sys.exit(1)
-
-# Close the plot figure to free memory
-plt.close(fig)
+if __name__ == "__main__":
+    main()
