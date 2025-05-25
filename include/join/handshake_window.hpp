@@ -16,6 +16,7 @@
 #include "index/index.hpp"
 #include "stream/stream.hpp"
 #include "types/types.hpp"
+#include "utils/decorator.hpp"
 
 namespace stream {
 
@@ -197,15 +198,25 @@ class HandshakeWindow {
       KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
                                 ? tuple.key_ + diff
                                 : std::numeric_limits<KeyType>::max();
-      auto results = index_s_->RangeSearch({lower_range, upper_range});
-      for (const auto &tuple_s : results) {
-        if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_)) {
-          // spdlog::debug("{} | {}", tuple, tuple_s);
-          ++join_count;
-        }
-      }
+      // auto results = index_s_->RangeSearch({lower_range, upper_range});
+      auto timed_range_search = decorator::decorateWithTimer(
+          [&](const std::pair<KeyType, KeyType> &key_range) {
+            auto results = index_s_->RangeSearch(key_range);
+            for (const auto &tuple_s : results) {
+              if (TimeStampMatched(tuple.timestamp_, tuple_s.timestamp_)) {
+                // spdlog::debug("{} | {}", tuple, tuple_s);
+                ++join_count;
+              }
+            }
+          },
+          std::to_string(id_) + " range_search_s");
+      auto range = std::make_pair(lower_range, upper_range);
+      timed_range_search(range);
 
-      index_r_->Insert(tuple);
+      // index_r_->Insert(tuple);
+      auto timed_insert = decorator::decorateWithTimer(
+          [&](const TupleType<KeyType, ValueType> &t) { index_r_->Insert(t); }, std::to_string(id_) + " insert_r");
+      timed_insert(tuple);
       forward_context_.size_r->store(index_r_->Size());
       return join_count;
     }
@@ -226,15 +237,25 @@ class HandshakeWindow {
       KeyType upper_range = (std::numeric_limits<KeyType>::max() - diff >= tuple.key_)
                                 ? tuple.key_ + diff
                                 : std::numeric_limits<KeyType>::max();
-      auto results = index_r_->RangeSearch({lower_range, upper_range});
-      for (const auto &tuple_r : results) {
-        if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_) && !tuple_r.forwarded_) {
-          // spdlog::debug("{} | {}", tuple_r, tuple);
-          ++join_count;
-        }
-      }
+      // auto results = index_r_->RangeSearch({lower_range, upper_range});
+      auto timed_range_search = decorator::decorateWithTimer(
+          [&](const std::pair<KeyType, KeyType> &key_range) {
+            auto results = index_r_->RangeSearch(key_range);
+            for (const auto &tuple_r : results) {
+              if (TimeStampMatched(tuple_r.timestamp_, tuple.timestamp_) && !tuple_r.forwarded_) {
+                // spdlog::debug("{} | {}", tuple_r, tuple);
+                ++join_count;
+              }
+            }
+          },
+          std::to_string(id_) + " range_search_r");
+      auto range = std::make_pair(lower_range, upper_range);
+      timed_range_search(range);
 
-      index_s_->Insert(tuple);
+      // index_s_->Insert(tuple);
+      auto timed_insert = decorator::decorateWithTimer(
+          [&](const TupleType<KeyType, ValueType> &t) { index_s_->Insert(t); }, std::to_string(id_) + " insert_s");
+      timed_insert(tuple);
       forward_context_.size_s->store(index_s_->Size());
 
       auto tuple_ack{tuple};
@@ -305,7 +326,10 @@ class HandshakeWindow {
         pending_list_right_.pop_front();
 
         if (tuple_sent.ctl_ == TupleFlag::INPUT_R) {
-          auto tuple_del = index_r_->PopOldest();
+          // auto tuple_del = index_r_->PopOldest();
+          auto timed_pop_oldest = decorator::decorateWithTimer([&]() { return index_r_->PopOldest(); },
+                                                               std::to_string(id_) + " pop_oldest_r");
+          auto tuple_del = timed_pop_oldest();
           (void)tuple_del;
           forward_context_.size_r->store(index_r_->Size());
           assert(tuple_del.key_ == tuple_sent.key_);
@@ -326,7 +350,10 @@ class HandshakeWindow {
         if (tuple.ctl_ == TupleFlag::ACK_S) {
           continue;
         }
-        auto tuple_del = index_r_->PopOldest();
+        // auto tuple_del = index_r_->PopOldest();
+        auto timed_pop_oldest = decorator::decorateWithTimer([&]() { return index_r_->PopOldest(); },
+                                                             std::to_string(id_) + " pop_oldest_r");
+        auto tuple_del = timed_pop_oldest();
         forward_context_.size_r->store(index_r_->Size());
         assert(tuple_del.timestamp_ <= *forward_context_.newest_r_ts);
         assert(!TimeStampMatched(tuple.timestamp_, *forward_context_.newest_s_ts));
@@ -360,7 +387,10 @@ class HandshakeWindow {
     assert(tuple_s.timestamp_ == tuple.timestamp_);
     assert(tuple_s.value_ == tuple.value_);
 
-    index_s_->PopOldest();
+    // index_s_->PopOldest();
+    auto timed_pop_oldest =
+        decorator::decorateWithTimer([&]() { return index_s_->PopOldest(); }, std::to_string(id_) + " pop_oldest_s");
+    timed_pop_oldest();
     forward_context_.size_s->store(index_s_->Size());
   }
 

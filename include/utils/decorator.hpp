@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <utility>
 
-// #define DEBUGGING
+#define DEBUGGING
 
 using Duration = std::chrono::high_resolution_clock::duration;
 

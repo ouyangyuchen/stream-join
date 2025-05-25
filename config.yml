@@ -1,8 +1,8 @@
-window_size: 800
+window_size: 100000
 log_level: "off"
-diff: 922337203685477 
-tuples_r: 10000 # Reduced for quicker test
-tuples_s: 10000 # Reduced for quicker test
+diff: 5000 
+tuples_r: 1000000
+tuples_s: 1000000
 workers: 8
 joiner_type: "handshake"
 index_type: "alex"
