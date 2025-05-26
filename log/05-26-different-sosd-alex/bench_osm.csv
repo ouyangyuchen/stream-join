@@ -1,0 +1,7 @@
+JoinerType,IndexType,Workers,Attempt,Status,Duration_ms,Throughput_tuples_s
+handshake,alex,8,1,SUCCESS,4618.04,216502.77
+handshake,alex,8,2,SUCCESS,4512.34,221583.5
+handshake,alex,8,3,SUCCESS,4507.75,221794.14
+handshake,bplustree,8,1,SUCCESS,4160.77,240292.59
+handshake,bplustree,8,2,SUCCESS,4248.72,235317.0
+handshake,bplustree,8,3,SUCCESS,3753.53,266373.84

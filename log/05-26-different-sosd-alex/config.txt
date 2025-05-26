@@ -1,0 +1,16 @@
+benchmark_params = {
+    "workers": [8],
+    "index_type": ["alex", "bplustree"],
+    "joiner_type": ["handshake"],
+    "stream_type": ["sosd"],
+    "tuples_r": [1000000],
+    "tuples_s": [1000000],
+    "window_size": [500000],
+    "diff": [200],
+    "channel_buffer_size": [128],
+    "sosd_file": [DEFAULT_SOSD_FILE],
+    "sosd_shuffle": [1],
+    "log_level": ["off"],
+    "preload": [1],
+    "watcher_enabled": [0],
+}

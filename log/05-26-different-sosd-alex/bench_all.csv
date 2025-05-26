@@ -1,0 +1,13 @@
+JoinerType,IndexType,Workers,Attempt,Status,Duration_ms,Throughput_tuples_s,Data_Source
+handshake,alex,8,1,SUCCESS,3671.89,272282.62,books
+handshake,alex,8,2,SUCCESS,3716.21,269036.81,books
+handshake,alex,8,3,SUCCESS,3178.36,314576.29,books
+handshake,bplustree,8,1,SUCCESS,4922.33,203114.13,books
+handshake,bplustree,8,2,SUCCESS,4743.52,210770.82,books
+handshake,bplustree,8,3,SUCCESS,4535.37,220446.5,books
+handshake,alex,8,1,SUCCESS,4618.04,216502.77,osm
+handshake,alex,8,2,SUCCESS,4512.34,221583.5,osm
+handshake,alex,8,3,SUCCESS,4507.75,221794.14,osm
+handshake,bplustree,8,1,SUCCESS,4160.77,240292.59,osm
+handshake,bplustree,8,2,SUCCESS,4248.72,235317.0,osm
+handshake,bplustree,8,3,SUCCESS,3753.53,266373.84,osm

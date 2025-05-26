@@ -9,23 +9,23 @@ import time
 
 # --- Configuration ---
 MAIN_EXECUTABLE = "./main"
-DEFAULT_SOSD_FILE = "../data/osm_cellids_200M_uint64"
-BENCHMARK_TIMEOUT = 3600  # Timeout for each benchmark run in seconds
-NUM_ITERATIONS = 1  # Number of *non-timeout* runs required per config
+DEFAULT_SOSD_FILE = "../data/uniform_dense_200M_uint64"
+BENCHMARK_TIMEOUT = 60  # Timeout for each benchmark run in seconds
+NUM_ITERATIONS = 3  # Number of *non-timeout* runs required per config
 MAX_ATTEMPTS_FACTOR = (
-    2  # Max attempts = NUM_ITERATIONS * this factor (prevents infinite loops)
+    10  # Max attempts = NUM_ITERATIONS * this factor (prevents infinite loops)
 )
 
 # --- Benchmark Parameters ---
 benchmark_params = {
-    "workers": [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48],
-    "index_type": ["bplustree", "list"],
-    "joiner_type": ["handshake", "broadcast"],
-    "stream_type": ["random"],
-    "tuples_r": [2000000],
-    "tuples_s": [2000000],
-    "window_size": [1000000],
-    "diff": [3000],
+    "workers": [8],
+    "index_type": ["alex", "bplustree"],
+    "joiner_type": ["handshake"],
+    "stream_type": ["sosd"],
+    "tuples_r": [1000000],
+    "tuples_s": [1000000],
+    "window_size": [500000],
+    "diff": [200],
     "channel_buffer_size": [128],
     "sosd_file": [DEFAULT_SOSD_FILE],
     "sosd_shuffle": [1],

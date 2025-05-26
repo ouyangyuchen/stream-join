@@ -19,8 +19,8 @@
 #include <vector>
 
 struct Config {
-  using KeyType = int64_t;
-  using ValueType = int64_t;
+  using KeyType = uint64_t;
+  using ValueType = uint64_t;
 
   std::string log_level = "info";
 
@@ -32,7 +32,7 @@ struct Config {
   size_t workers = 4;                     // Default to 4 workers
   std::string joiner_type = "handshake";  // "handshake" or "broadcast"
   std::string index_type = "bplustree";   // "list" or "bplustree" or "pgm" or "alex"
-  std::string stream_type = "random";     // "random" or "sequential" or "sosd"
+  std::string stream_type = "sosd";       // "random" or "sequential" or "sosd"
 
   bool watcher_enabled = false;  // Enable or disable watcher for handshake joiner
   std::chrono::milliseconds watcher_interval = std::chrono::milliseconds(10000);
@@ -195,22 +195,22 @@ bool parse_arguments(int argc, char *argv[]) {
 
 auto GetStreams() -> std::pair<std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>>,
                                std::unique_ptr<stream::Stream<Config::KeyType, Config::ValueType>>> {
-  if (config.stream_type == "random") {
-    return {std::make_unique<stream::RandomStream>(config.tuples_r),
-            std::make_unique<stream::RandomStream>(config.tuples_s)};
-  }
-  if (config.stream_type == "sequential") {
-    return {std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_r, config.seq_step),
-            std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_s, config.seq_step)};
-  }
-  // if (config.stream_type == "sosd") {
-  //   if (config.sosd_file_data.empty()) {
-  //     std::cout << "Loading SOSD data from file: " << config.sosd_file << std::endl;
-  //     config.sosd_file_data = stream::load_sosd<Config::KeyType>(config.sosd_file, config.sosd_shuffle);
-  //   }
-  //   return {std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_r),
-  //           std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_s)};
+  // if (config.stream_type == "random") {
+  //   return {std::make_unique<stream::RandomStream>(config.tuples_r),
+  //           std::make_unique<stream::RandomStream>(config.tuples_s)};
   // }
+  // if (config.stream_type == "sequential") {
+  //   return {std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_r, config.seq_step),
+  //           std::make_unique<stream::SequentialStream>(config.seq_start, config.tuples_s, config.seq_step)};
+  // }
+  if (config.stream_type == "sosd") {
+    if (config.sosd_file_data.empty()) {
+      std::cout << "Loading SOSD data from file: " << config.sosd_file << std::endl;
+      config.sosd_file_data = stream::load_sosd<Config::KeyType>(config.sosd_file, config.sosd_shuffle);
+    }
+    return {std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_r),
+            std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_s)};
+  }
   throw std::runtime_error("Unsupported stream type: " + config.stream_type);
 }
 
