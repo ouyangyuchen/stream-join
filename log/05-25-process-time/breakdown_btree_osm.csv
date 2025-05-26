@@ -1,0 +1,70 @@
+Running C++ program with command: ./main --log_level off --window_size 100000 --diff 500 --tuples_r 5000000 --tuples_s 5000000 --channel_buffer_size 256 --workers 8 --joiner_type handshake --index_type bplustree --stream_type sosd --preload 1 --watcher_enabled 0 --watcher_interval 10000 --sosd_file ../data/osm_cellids_200M_uint64 --sosd_shuffle 1
+--- C++ Program Output ---
+
+
+--- Configuration ---
+Joiner Type: handshake
+Index Type: bplustree
+Stream Type: sosd
+Workers: 8
+Window Size: 100000
+Diff: 500
+Tuples R: 5000000, Tuples S: 5000000
+Channel Buffer Size: 256
+SOSD File: ../data/osm_cellids_200M_uint64, Shuffle: true
+---------------------
+
+Initializing joiner...
+Loading SOSD data from file: ../data/osm_cellids_200M_uint64
+HandshakeJoiner/BPlusTreeIndex/8w: 177705       ms | 55145.22             tuples/s (end to end)
+--- Recorded Durations ---
+2 pop_oldest_s: 1471 ms
+4 insert_r: 1818 ms
+4 pop_oldest_s: 1521 ms
+5 insert_r: 1718 ms
+5 range_search_s: 864 ms
+2 insert_s: 1670 ms
+4 range_search_s: 1122 ms
+5 pop_oldest_s: 1467 ms
+3 pop_oldest_r: 1658 ms
+2 range_search_r: 822 ms
+3 insert_s: 1866 ms
+4 insert_s: 1814 ms
+4 range_search_r: 854 ms
+1 insert_s: 1717 ms
+0 range_search_r: 822 ms
+5 pop_oldest_r: 1563 ms
+3 insert_r: 1821 ms
+7 pop_oldest_s: 1541 ms
+7 insert_r: 1680 ms
+6 insert_s: 1707 ms
+0 pop_oldest_s: 1464 ms
+0 pop_oldest_r: 1633 ms
+3 range_search_s: 830 ms
+6 range_search_r: 831 ms
+0 insert_r: 1730 ms
+7 range_search_r: 883 ms
+3 range_search_r: 822 ms
+6 pop_oldest_r: 1638 ms
+0 range_search_s: 843 ms
+6 insert_r: 1784 ms
+4 pop_oldest_r: 1638 ms
+7 insert_s: 1744 ms
+7 pop_oldest_r: 1539 ms
+1 insert_r: 1679 ms
+1 pop_oldest_r: 1551 ms
+5 insert_s: 1722 ms
+6 pop_oldest_s: 1465 ms
+7 range_search_s: 842 ms
+1 range_search_s: 802 ms
+2 pop_oldest_r: 1593 ms
+0 insert_s: 1684 ms
+5 range_search_r: 849 ms
+2 range_search_s: 802 ms
+6 range_search_s: 794 ms
+2 insert_r: 1708 ms
+3 pop_oldest_s: 1818 ms
+1 pop_oldest_s: 1504 ms
+1 range_search_r: 819 ms
+--------------------------
+--- End of C++ Program Output ---

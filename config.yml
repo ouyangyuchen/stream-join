@@ -1,8 +1,8 @@
 window_size: 100000
 log_level: "off"
-diff: 5000 
-tuples_r: 1000000
-tuples_s: 1000000
+diff: 500
+tuples_r: 500000
+tuples_s: 500000
 workers: 8
 joiner_type: "handshake"
 index_type: "alex"

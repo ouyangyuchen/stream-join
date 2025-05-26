@@ -1,0 +1,70 @@
+Running C++ program with command: ./main --log_level off --window_size 100000 --diff 500 --tuples_r 500000 --tuples_s 500000 --channel_buffer_size 256 --workers 8 --joiner_type handshake --index_type alex --stream_type sosd --preload 1 --watcher_enabled 0 --watcher_interval 10000 --sosd_file ../data/osm_cellids_200M_uint64 --sosd_shuffle 1
+--- C++ Program Output ---
+
+
+--- Configuration ---
+Joiner Type: handshake
+Index Type: alex
+Stream Type: sosd
+Workers: 8
+Window Size: 100000
+Diff: 500
+Tuples R: 500000, Tuples S: 500000
+Channel Buffer Size: 256
+SOSD File: ../data/osm_cellids_200M_uint64, Shuffle: true
+---------------------
+
+Initializing joiner...
+Loading SOSD data from file: ../data/osm_cellids_200M_uint64
+HandshakeJoiner/AlexMapWindowIndex/8w: 13243.2      ms | 60376.77             tuples/s (end to end)
+--- Recorded Durations ---
+2 range_search_r: 90 ms
+3 insert_s: 160 ms
+4 pop_oldest_s: 80 ms
+4 insert_r: 158 ms
+2 pop_oldest_s: 100 ms
+5 insert_r: 165 ms
+5 range_search_s: 87 ms
+2 insert_s: 171 ms
+4 range_search_s: 103 ms
+5 pop_oldest_s: 111 ms
+4 insert_s: 146 ms
+3 pop_oldest_r: 85 ms
+6 insert_r: 161 ms
+1 insert_r: 137 ms
+4 pop_oldest_r: 90 ms
+7 insert_s: 131 ms
+7 range_search_r: 58 ms
+3 range_search_s: 62 ms
+6 range_search_r: 58 ms
+0 insert_r: 135 ms
+7 pop_oldest_r: 88 ms
+4 range_search_r: 62 ms
+1 insert_s: 161 ms
+0 pop_oldest_s: 90 ms
+0 range_search_r: 64 ms
+5 pop_oldest_r: 93 ms
+0 pop_oldest_r: 84 ms
+0 insert_s: 144 ms
+6 insert_s: 135 ms
+3 range_search_r: 60 ms
+0 range_search_s: 55 ms
+6 pop_oldest_r: 90 ms
+3 insert_r: 148 ms
+7 pop_oldest_s: 72 ms
+3 pop_oldest_s: 92 ms
+1 pop_oldest_s: 92 ms
+2 insert_r: 173 ms
+1 range_search_s: 57 ms
+7 range_search_s: 66 ms
+2 pop_oldest_r: 111 ms
+6 pop_oldest_s: 76 ms
+7 insert_r: 157 ms
+1 range_search_r: 62 ms
+1 pop_oldest_r: 78 ms
+5 insert_s: 173 ms
+2 range_search_s: 60 ms
+5 range_search_r: 58 ms
+6 range_search_s: 66 ms
+--------------------------
+--- End of C++ Program Output ---
