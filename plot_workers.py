@@ -54,10 +54,10 @@ def plot_benchmark_results(csv_filepath, output_filepath):
     colors = plt.cm.get_cmap("tab10", len(joiners))
     color_map = {joiner: colors(i) for i, joiner in enumerate(joiners)}
     style_map = {
-        "bplustree": "-",
+        "bplustree": "-.",
         "alex": "--",
         "pgm": ":",
-        "list": "-.",
+        "list": "-",
     }
     default_styles = ["-", "--", ":", "-."]
     for i, idx in enumerate(indexes):
