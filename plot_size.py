@@ -80,31 +80,33 @@ def create_plot(data, output_file):
         s_sizes,
         bar_width,
         label="Index S Size",
-        color="tab:orange",
+        color="tab:green",
         alpha=0.7,
     )
 
-    ax1.set_xlabel("Window ID")
-    ax1.set_ylabel("Index Size", color="tab:blue")
-    ax1.tick_params(axis="y", labelcolor="tab:blue")
+    ax1.set_xlabel("Worker ID", fontsize=18)
+    ax1.set_ylabel("Index Size", color="tab:blue", fontsize=18)
+    ax1.tick_params("both", labelsize=16, labelcolor="tab:blue")
     ax1.set_xticks(index)
     ax1.set_xticklabels(window_ids)
-    ax1.set_ylim(0, max(max(r_sizes), max(s_sizes)) * 1.15)
+    ax1.set_ylim(0, 600000)
 
     # Line chart for join result count (right y-axis)
     ax2 = ax1.twinx()
     line1 = ax2.plot(
         index,
         join_counts,
-        color="tab:green",
+        color="tab:orange",
         marker="o",
+        markersize=12,
         linestyle="-",
+        linewidth=3,
         label="Join Result Count",
     )
 
-    ax2.set_ylabel("Join Result Count", color="tab:green")
-    ax2.tick_params(axis="y", labelcolor="tab:green")
-    ax2.set_ylim(0, max(join_counts) * 1.15)
+    ax2.set_ylabel("Join Result Count", color="tab:orange", fontsize=18)
+    ax2.tick_params(axis="y", labelcolor="tab:orange", labelsize=16)
+    ax2.set_ylim(0, 7e9)
 
     # --- Legend Handling ---
     # Get handles and labels from both axes
@@ -123,13 +125,11 @@ def create_plot(data, output_file):
         all_lines,
         all_labels,
         loc="upper center",
-        bbox_to_anchor=(0.5, 0.05),
+        bbox_to_anchor=(0.5, 0.0),
         ncol=3,
-        frameon=True,
+        fontsize=18,
     )
     # --- End Legend Handling ---
-
-    plt.title("Handshake: Index Sizes and Join Result Counts per Sub-Window (balanced)")
 
     # Adjust layout to make space for the legend below the plot
     # Increase the 'bottom' value to create padding at the bottom.
@@ -137,7 +137,7 @@ def create_plot(data, output_file):
 
     # Save the figure
     try:
-        plt.savefig(output_file)
+        plt.savefig(output_file, bbox_inches="tight", dpi=300)
         print(f"Plot saved to '{output_file}'")
     except Exception as e:
         print(f"Error saving plot to '{output_file}': {e}", file=sys.stderr)
