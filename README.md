@@ -1,5 +1,7 @@
 # Stream Join
 
+Check the project [report](./report.pdf) for details.
+
 ## Overview
 
 This repo contains 2 stream join implementations:
