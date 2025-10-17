@@ -5,11 +5,10 @@ tuples_r: 10000 # Reduced for quicker test
 tuples_s: 10000 # Reduced for quicker test
 workers: 8
 joiner_type: "handshake"
-index_type: "alex"
+index_type: "bplustree"
 stream_type: "sosd"
 watcher_enabled: 0
 watcher_interval: 10000
 channel_buffer_size: 256
 sosd_file: "../data/osm_cellids_200M_uint64"
-sosd_shuffle: 1
 preload: 1

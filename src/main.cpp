@@ -45,7 +45,6 @@ struct Config {
 
   // For SOSDStream
   std::string sosd_file = "../data/osm_cellids_200M_uint64";
-  bool sosd_shuffle = true;
   std::vector<KeyType> sosd_file_data;  // Loaded data for SOSDStream shared by all sosd streams
 } config;
 
@@ -71,7 +70,6 @@ void print_help(const char *prog_name) {
       << "  --seq_step <val>             For sequential stream: step size (default: 1)\n"
       << "  --sosd_file <file>           For SOSD stream: path to the SOSD file (default: "
          "../data/osm_cellids_200M_uint64)\n"
-      << "  --sosd_shuffle <val>         For SOSD stream: shuffle the data (default: true)\n"
       << std::endl;
 }
 
@@ -166,11 +164,6 @@ bool parse_arguments(int argc, char *argv[]) {
           config.sosd_file = argv[i];
         else
           throw std::runtime_error("Missing value for --sosd_file");
-      } else if (arg == "--sosd_shuffle") {
-        if (++i < argc)
-          config.sosd_shuffle = std::stoul(argv[i]);
-        else
-          throw std::runtime_error("Missing value for --sosd_shuffle");
       } else {
         throw std::runtime_error("Unknown option: " + arg);
       }
@@ -206,7 +199,7 @@ auto GetStreams() -> std::pair<std::unique_ptr<stream::Stream<Config::KeyType, C
   // if (config.stream_type == "sosd") {
   //   if (config.sosd_file_data.empty()) {
   //     std::cout << "Loading SOSD data from file: " << config.sosd_file << std::endl;
-  //     config.sosd_file_data = stream::load_sosd<Config::KeyType>(config.sosd_file, config.sosd_shuffle);
+  //     config.sosd_file_data = stream::load_sosd<Config::KeyType>(config.sosd_file);
   //   }
   //   return {std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_r),
   //           std::make_unique<stream::SOSDStream<Config::KeyType>>(config.sosd_file_data, config.tuples_s)};
@@ -296,7 +289,7 @@ int main(int argc, char *argv[]) {
   } else if (config.stream_type == "sequential") {
     std::cout << "Seq Start: " << config.seq_start << ", Seq Step: " << config.seq_step << "\n";
   } else if (config.stream_type == "sosd") {
-    std::cout << "SOSD File: " << config.sosd_file << ", Shuffle: " << (config.sosd_shuffle ? "true" : "false") << "\n";
+    std::cout << "SOSD File: " << config.sosd_file << "\n";
   }
   std::cout << "---------------------\n" << std::endl;
 

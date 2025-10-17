@@ -162,7 +162,7 @@ TEST(StreamTest, TupleReaderSingleStream) {
 TEST(StreamTest, SOSDStreamBasic) {
   const std::string file_path = "../data/books_200M_uint64";
   size_t size = 100;
-  auto data = stream::load_sosd<uint64_t>(file_path, true);
+  auto data = stream::load_sosd<uint64_t>(file_path);
 
   stream::SOSDStream<uint64_t> stream(data, size);
   stream::TupleType<uint64_t, uint64_t> tuple;

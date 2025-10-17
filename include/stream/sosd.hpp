@@ -8,7 +8,7 @@
 namespace stream {
 
 template <typename T>
-auto load_sosd(std::string filename, bool shuffle = true) -> std::vector<T> {
+auto load_sosd(std::string filename) -> std::vector<T> {
   std::ifstream ifs(filename, std::ios::in | std::ios::binary);
   std::vector<T> v;
 
@@ -24,19 +24,13 @@ auto load_sosd(std::string filename, bool shuffle = true) -> std::vector<T> {
 
   ifs.close();
 
-  if (shuffle) {
-    std::random_device rd;
-    std::mt19937 g(rd());
-    std::shuffle(v.begin(), v.end(), g);
-  }
-
   return v;
 }
 
 template <typename KeyType, typename ValueType = KeyType>
 class SOSDStream : public Stream<KeyType, ValueType> {
  public:
-  SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize);
+  SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize, std::mt19937 *shuffle_seed = nullptr);
 
   auto operator>>(TupleType<KeyType, ValueType> &tuple) -> Stream<KeyType, ValueType> & override;
 
@@ -45,18 +39,21 @@ class SOSDStream : public Stream<KeyType, ValueType> {
   auto Eof() -> bool override;
 
  private:
-  const std::vector<KeyType> &keys_;  // vector of keys
+  std::vector<KeyType> keys_;         // vector of keys
   size_t current_index_{0};           // current index in the vector
   TsType current_timestamp_{0};       // current timestamp
   size_t maxsize_;                    // max size of the stream/vector
 };
 
 template <typename KeyType, typename ValueType>
-SOSDStream<KeyType, ValueType>::SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize)
+SOSDStream<KeyType, ValueType>::SOSDStream(const std::vector<KeyType> &file_data, size_t maxsize, std::mt19937 *shuffle_seed)
     : keys_(file_data), maxsize_(maxsize) {
   if (maxsize_ > keys_.size()) {
     throw std::runtime_error("SOSDStream: maxsize exceeds the number of keys in the file");
   }
+  auto rng_ = shuffle_seed == nullptr ? std::mt19937(std::random_device{}()) : *shuffle_seed;
+  std::shuffle(keys_.begin(), keys_.end(), rng_);
+  keys_.resize(maxsize_);  // truncate to maxsize
 }
 
 template <typename KeyType, typename ValueType>
