@@ -87,23 +87,6 @@ target_link_libraries(unit_test
     spdlog::spdlog
 )
 
-# Benchmark tests
-add_executable(benchmark_test
-    benchmark/joiner_benchmark.cpp
-    src/decorator.cpp
-)
-target_link_libraries(benchmark_test PRIVATE
-    benchmark::benchmark
-    benchmark::benchmark_main
-    spdlog::spdlog
-    Threads::Threads
-)
-set_target_properties(benchmark_test PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED ON)
-if(CMAKE_BUILD_TYPE STREQUAL "" OR CMAKE_BUILD_TYPE STREQUAL "None")
-    message(STATUS "No build type specified, defaulting to Release for benchmarks.")
-    set_property(TARGET benchmark_test PROPERTY CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
-endif()
-
 # Install target
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 
